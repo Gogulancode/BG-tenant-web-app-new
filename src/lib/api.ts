@@ -1,6 +1,6 @@
 import { logout } from "./auth";
 
-export const API_URL = import.meta.env.VITE_API_URL;
+export const API_URL = (import.meta.env.VITE_API_URL ?? "").trim().replace(/\/$/, "");
 
 let isRefreshing = false;
 let refreshWaiters: Array<() => void> = [];
