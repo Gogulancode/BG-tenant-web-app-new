@@ -49,6 +49,7 @@ import {
   useSupportTicket,
   useCreateSupportTicket,
   useAddTicketComment,
+  TicketComment,
   SupportTicket,
 } from "@/hooks/useSupport";
 
@@ -191,7 +192,7 @@ function TicketDetail({
       {ticket.comments && ticket.comments.length > 0 && (
         <ScrollArea className="h-48">
           <div className="space-y-3">
-            {ticket.comments.map((c: any) => (
+            {ticket.comments.map((c: TicketComment) => (
               <div key={c.id} className="p-3 bg-background border rounded-lg">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-medium text-sm">{c.userName}</span>

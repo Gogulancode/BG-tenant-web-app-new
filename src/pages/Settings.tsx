@@ -179,7 +179,7 @@ export default function Settings() {
     e.preventDefault();
     setSavingBusiness(true);
     try {
-      await updateProfile({ businessType } as any);
+      await updateProfile({ businessType });
       toast({
         title: "Success",
         description: "Business type updated successfully",

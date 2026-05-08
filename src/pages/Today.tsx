@@ -32,6 +32,7 @@ import {
   submitDailyReview,
   updateOutcome,
 } from "@/lib/api";
+import type { DashboardSummaryResponse } from "@/lib/api";
 import { useCreateActivity } from "@/hooks/useActivities";
 import { formatCurrencyINR, formatPercent } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,7 +85,7 @@ function percent(value?: number) {
   return formatPercent(Math.max(0, Math.min(100, value || 0)));
 }
 
-function MomentumCard({ data }: { data: any }) {
+function MomentumCard({ data }: { data?: DashboardSummaryResponse }) {
   const cockpit = data?.cockpit;
   const score = cockpit?.insights?.momentumScore ?? data?.insights?.momentumScore ?? 0;
   const streak = cockpit?.insights?.streakCount ?? data?.insights?.streakCount ?? 0;

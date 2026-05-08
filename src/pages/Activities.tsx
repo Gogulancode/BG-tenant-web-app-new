@@ -42,8 +42,16 @@ const typeColors: Record<string, string> = {
   system: "bg-gray-100 text-gray-800",
 };
 
+type ActivityLogItem = {
+  id: string;
+  type: string;
+  action: string;
+  details?: string | null;
+  createdAt: string;
+};
+
 export default function Activities() {
-  const [activities, setActivities] = useState<any[]>([]);
+  const [activities, setActivities] = useState<ActivityLogItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [selectedType, setSelectedType] = useState("");

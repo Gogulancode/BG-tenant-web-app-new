@@ -49,6 +49,7 @@ const profileSchema = z.object({
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
+type ProfileProgressUser = NonNullable<ReturnType<typeof useOnboardingState>["data"]>["user"];
 
 interface Step1ProfileProps {
   onNext: () => void;
@@ -85,7 +86,7 @@ export function Step1Profile({ onNext }: Step1ProfileProps) {
   // Pre-fill form if data exists
   useEffect(() => {
     if (progress?.user) {
-      const user = progress.user as any;
+      const user = progress.user as ProfileProgressUser;
       form.reset({
         age: user.age || undefined,
         gender: user.gender || undefined,

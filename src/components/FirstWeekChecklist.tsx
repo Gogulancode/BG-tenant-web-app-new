@@ -29,6 +29,10 @@ interface FirstWeekChecklistProps {
   onDismiss?: () => void;
 }
 
+type ChecklistOutcome = {
+  status?: string;
+};
+
 export function FirstWeekChecklist({ onDismiss }: FirstWeekChecklistProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isDismissed, setIsDismissed] = useState(false);
@@ -69,7 +73,7 @@ export function FirstWeekChecklist({ onDismiss }: FirstWeekChecklistProps) {
   const hasMetrics = metrics.length > 0;
   const hasOutcomes = outcomes.length > 0;
   const hasLoggedMetric = (dashboardData?.metrics?.totalMetrics ?? 0) > 0;
-  const hasCompletedOutcome = outcomes.some((o: any) => o.status === "Done");
+  const hasCompletedOutcome = (outcomes as ChecklistOutcome[]).some((outcome) => outcome.status === "Done");
   const hasStreak = (dashboardData?.insights?.streakCount ?? 0) >= 3;
   const momentumAbove50 = (dashboardData?.insights?.momentumScore ?? 0) >= 50;
 

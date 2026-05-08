@@ -93,10 +93,10 @@ const Register = () => {
 
       // Redirect to onboarding
       window.location.href = "/onboarding";
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Registration Failed",
-        description: error.message || "Something went wrong",
+        description: error instanceof Error ? error.message : "Something went wrong",
         variant: "destructive",
       });
     } finally {

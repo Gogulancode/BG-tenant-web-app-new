@@ -16,6 +16,7 @@ export interface SupportTicket {
   priority: "low" | "medium" | "high";
   createdAt: string;
   updatedAt: string;
+  comments?: TicketComment[];
 }
 
 export interface TicketComment {

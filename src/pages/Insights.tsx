@@ -44,18 +44,44 @@ const CHART_COLORS = {
 
 const PIE_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#f43f5e", "#8b5cf6"];
 
-function getFlagColor(flag: string): "green" | "yellow" | "red" {
+type InsightsSummary = {
+  momentumScore?: number;
+  streakCount?: number;
+  flags?: string | null;
+};
+
+type MomentumPoint = {
+  week: string | number;
+  momentum?: number;
+};
+
+type StreakPoint = {
+  week: string | number;
+  days?: number;
+};
+
+type WeeklyConsistencyPoint = {
+  week: string | number;
+  consistency?: number;
+};
+
+type ActivityBreakdownPoint = {
+  type: string;
+  count: number;
+};
+
+function getFlagColor(flag?: string | null): "green" | "yellow" | "red" {
   if (flag === "GREEN" || flag?.toLowerCase() === "green") return "green";
   if (flag === "YELLOW" || flag?.toLowerCase() === "yellow") return "yellow";
   return "red";
 }
 
 export default function Insights() {
-  const [summary, setSummary] = useState<any>(null);
-  const [momentum, setMomentum] = useState<any[]>([]);
-  const [streak, setStreak] = useState<any[]>([]);
-  const [weekly, setWeekly] = useState<any[]>([]);
-  const [activity, setActivity] = useState<any[]>([]);
+  const [summary, setSummary] = useState<InsightsSummary | null>(null);
+  const [momentum, setMomentum] = useState<MomentumPoint[]>([]);
+  const [streak, setStreak] = useState<StreakPoint[]>([]);
+  const [weekly, setWeekly] = useState<WeeklyConsistencyPoint[]>([]);
+  const [activity, setActivity] = useState<ActivityBreakdownPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Weekly diagnostics (current week)
