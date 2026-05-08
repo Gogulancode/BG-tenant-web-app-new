@@ -13,6 +13,7 @@ import Today from "./pages/Today";
 import Metrics from "./pages/Metrics";
 import Outcomes from "./pages/Outcomes";
 import Sales from "./pages/Sales";
+import Activities from "./pages/Activities";
 import Reviews from "./pages/Reviews";
 import Insights from "./pages/Insights";
 import Settings from "./pages/Settings";
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="/metrics" element={<Metrics />} />
             <Route path="/outcomes" element={<Outcomes />} />
             <Route path="/sales" element={<Sales />} />
+            <Route path="/activities" element={<Activities />} />
             <Route path="/reviews" element={<Reviews />} />
             <Route path="/insights" element={<Insights />} />
             <Route path="/settings" element={<Settings />} />
