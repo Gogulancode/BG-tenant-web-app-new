@@ -1,4 +1,12 @@
-import { logout } from "./auth";
+import {
+  clearAuthSession,
+  getAccessToken,
+  getRefreshToken,
+  hasAccessToken,
+  normalizeAuthTokens,
+  redirectToLogin,
+  saveAuthTokens,
+} from "./auth-session";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -13,13 +21,13 @@ function notifyRefreshDone() {
 }
 
 export async function refreshToken(): Promise<boolean> {
-  const refresh = localStorage.getItem("refresh_token");
+  const refresh = getRefreshToken();
   if (!refresh) return false;
 
   // prevent multiple parallel refresh calls
   if (isRefreshing) {
     await new Promise<void>((resolve) => refreshWaiters.push(resolve));
-    return !!localStorage.getItem("access_token");
+    return hasAccessToken();
   }
 
   try {
@@ -32,22 +40,25 @@ export async function refreshToken(): Promise<boolean> {
     });
 
     if (!res.ok) {
-      logout(); // will clear tokens + redirect to /login
+      clearAuthSession();
+      redirectToLogin();
       return false;
     }
 
     const data = await res.json();
-    if (!data.accessToken || !data.refreshToken) {
-      logout();
+    const tokens = normalizeAuthTokens(data);
+    if (!tokens.accessToken || !tokens.refreshToken) {
+      clearAuthSession();
+      redirectToLogin();
       return false;
     }
 
-    localStorage.setItem("access_token", data.accessToken);
-    localStorage.setItem("refresh_token", data.refreshToken);
+    saveAuthTokens(tokens.accessToken, tokens.refreshToken);
     return true;
   } catch (e) {
     console.error("Token refresh failed", e);
-    logout();
+    clearAuthSession();
+    redirectToLogin();
     return false;
   } finally {
     isRefreshing = false;
@@ -56,7 +67,7 @@ export async function refreshToken(): Promise<boolean> {
 }
 
 export async function api(path: string, options: RequestInit = {}): Promise<any> {
-  const accessToken = localStorage.getItem("access_token");
+  const accessToken = getAccessToken();
 
   const headers: HeadersInit = {
     "Content-Type": "application/json",
@@ -110,7 +121,7 @@ export async function api(path: string, options: RequestInit = {}): Promise<any>
     throw new Error("Unauthorized");
   }
 
-  const newAccessToken = localStorage.getItem("access_token");
+  const newAccessToken = getAccessToken();
   const retryHeaders: HeadersInit = {
     "Content-Type": "application/json",
     ...(options.headers || {}),

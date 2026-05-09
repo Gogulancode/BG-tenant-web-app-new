@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { API_URL } from "../lib/api";
+import { registerUser } from "../lib/api";
+import { saveAuthSession } from "../lib/auth-session";
 import { Target, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -65,26 +66,15 @@ const Register = () => {
     setIsLoading(true);
 
     try {
-      const res = await fetch(`${API_URL}/api/v1/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          businessType: formData.businessType,
-        }),
+      const data = await registerUser({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        businessType: formData.businessType,
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Registration failed");
-      }
-
       // Auto-login after registration
-      localStorage.setItem("access_token", data.accessToken);
-      localStorage.setItem("refresh_token", data.refreshToken);
+      saveAuthSession(data);
 
       toast({
         title: "Success!",

@@ -10,6 +10,7 @@ import {
   getCurrentUser,
 } from "@/lib/api";
 import { logout } from "@/lib/auth";
+import { saveAuthSession } from "@/lib/auth-session";
 
 export function useLogin() {
   const navigate = useNavigate();
@@ -18,11 +19,7 @@ export function useLogin() {
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       loginUser(email, password),
     onSuccess: (data) => {
-      localStorage.setItem("access_token", data.accessToken);
-      localStorage.setItem("refresh_token", data.refreshToken);
-      if (data.user) {
-        localStorage.setItem("user", JSON.stringify(data.user));
-      }
+      saveAuthSession(data);
       toast({ title: "Welcome back!", description: "Login successful" });
       navigate("/today");
     },
@@ -47,11 +44,7 @@ export function useRegister() {
       businessType?: string;
     }) => registerUser(payload),
     onSuccess: (data) => {
-      localStorage.setItem("access_token", data.accessToken);
-      localStorage.setItem("refresh_token", data.refreshToken);
-      if (data.user) {
-        localStorage.setItem("user", JSON.stringify(data.user));
-      }
+      saveAuthSession(data);
       toast({ title: "Account created!", description: "Welcome aboard" });
       navigate("/today");
     },

@@ -5,6 +5,7 @@ import { getOnboardingState } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { logout } from "@/lib/auth";
+import { getAccessToken } from "@/lib/auth-session";
 
 function AuthRouteStatus({
   title,
@@ -57,7 +58,7 @@ export default function ProtectedRoute({
   requireOnboarding?: boolean;
 }) {
   const location = useLocation();
-  const accessToken = localStorage.getItem("access_token");
+  const accessToken = getAccessToken();
 
   const {
     data: onboardingState,
@@ -104,7 +105,7 @@ export default function ProtectedRoute({
 }
 
 export function PublicOnlyRoute({ children }: { children: JSX.Element }) {
-  const accessToken = localStorage.getItem("access_token");
+  const accessToken = getAccessToken();
   const {
     data: onboardingState,
     isLoading,

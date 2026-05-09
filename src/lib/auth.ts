@@ -1,23 +1,24 @@
 import { API_URL } from "./api";
+import { clearAuthSession, getAccessToken } from "./auth-session";
 
 export async function logout() {
   try {
-    const refresh = localStorage.getItem("refresh_token");
+    const accessToken = getAccessToken();
 
-    await fetch(`${API_URL}/api/v1/auth/logout`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ refreshToken: refresh }),
-    });
+    if (accessToken) {
+      await fetch(`${API_URL}/api/v1/auth/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+    }
   } catch (e) {
     console.warn("Logout API failed (ignored)", e);
   }
 
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
-  localStorage.removeItem("user");
+  clearAuthSession();
 
   window.location.href = "/login";
 }

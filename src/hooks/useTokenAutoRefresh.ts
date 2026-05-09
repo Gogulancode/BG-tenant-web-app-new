@@ -1,15 +1,16 @@
 import { useEffect } from "react";
 import { refreshToken } from "@/lib/api";
+import { getRefreshToken } from "@/lib/auth-session";
 
 const TEN_MINUTES = 10 * 60 * 1000;
 
 export function useTokenAutoRefresh() {
   useEffect(() => {
     // don't start timer if not logged in
-    if (!localStorage.getItem("refresh_token")) return;
+    if (!getRefreshToken()) return;
 
     const intervalId = setInterval(() => {
-      const refresh = localStorage.getItem("refresh_token");
+      const refresh = getRefreshToken();
       if (!refresh) return;
 
       // fire and forget; refreshToken already handles failures
