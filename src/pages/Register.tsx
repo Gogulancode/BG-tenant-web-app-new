@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { registerUser } from "../lib/api";
 import { saveAuthSession } from "../lib/auth-session";
-import { Target, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const BUSINESS_TYPES = [
@@ -101,9 +101,8 @@ const Register = () => {
         <div className="flex flex-col justify-between w-full">
           {/* Top Section */}
           <div className="flex-1 flex flex-col justify-center">
-            {/* Icon */}
-            <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mb-12">
-              <Target className="w-12 h-12 text-white" />
+            <div className="mb-12 flex h-20 w-20 items-center justify-center rounded-2xl bg-white/95 p-3 shadow-lg">
+              <img src="/bridge_gaps_mark.png" alt="Bridging Gaps" className="h-full w-full object-contain" />
             </div>
 
             {/* Text */}
