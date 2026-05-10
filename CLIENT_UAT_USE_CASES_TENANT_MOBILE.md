@@ -116,6 +116,37 @@ Expected sales calculation example:
 | Expected Leads Per Month: 25 | Around 5 monthly conversions |
 | Existing/New Contribution: 40/60 | Split should show existing and new customer targets |
 
+## Use Case 2A - Target Achievement Milestones
+
+Goal: Confirm the milestone/achievement stage flow from the Excel wireframe is captured during onboarding.
+
+The Excel sheet `Target Achievement Stages` lists the original milestone ladder:
+
+| Progress | Milestone / Owner Action |
+| --- | --- |
+| 10% | Define USP |
+| 20% | Define Menu Card |
+| 30% | Define Packages / Combo offers |
+| 40% | Define Customer segment |
+| 50% | Reconnect with existing customer segment |
+| 60% | Create monthly offers |
+| 70% | Invest in Google ad |
+| 80% | Create retention customer delight |
+| 90% | Invest in Facebook / Instagram ad |
+| 100% | Create customer communities |
+
+In the app, these may be grouped into practical achievement stages such as Foundation, Reconnect, Monthly Offers, Paid Growth, and Retention Community.
+
+| Step | Action | Expected Result | Result | Notes |
+| --- | --- | --- | --- | --- |
+| 1 | During onboarding, open Achievement Stages | Milestone/stage setup screen loads |  |  |
+| 2 | Review the default stages generated from annual goal | Stage target values are based on the annual sales goal |  |  |
+| 3 | Check that early milestones include USP/menu/packages/customer segment | Foundation milestone is represented clearly |  |  |
+| 4 | Check that existing customer reconnect and monthly offers are represented | Growth actions are represented clearly |  |  |
+| 5 | Check that Google/Facebook/Instagram ad actions are represented | Paid growth milestone is represented clearly |  |  |
+| 6 | Check that retention delight/community actions are represented | Retention/community milestone is represented clearly |  |  |
+| 7 | Save the stages and continue onboarding | Stages save and remain after refresh |  |  |
+
 ## Use Case 3 - Today Workspace
 
 Goal: Confirm the daily execution page guides the tenant clearly.
@@ -252,4 +283,3 @@ Goal: Confirm the app feels usable on a real phone.
 Reviewer name:
 
 Date:
-
