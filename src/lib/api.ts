@@ -811,23 +811,19 @@ export async function getTemplates() {
   return { metrics, outcomes, activities };
 }
 
-// Note: Create/Update/Delete templates not yet implemented in backend
 export async function createTemplate(payload: { name: string; target?: number; description?: string }) {
-  console.warn("Template creation not yet implemented in backend");
-  return { success: false, message: "Not implemented" };
+  throw new Error("Template creation is managed from Superadmin");
 }
 
 export async function updateTemplate(
   templateId: string,
   payload: { name?: string; target?: number; description?: string }
 ) {
-  console.warn("Template update not yet implemented in backend");
-  return { success: false, message: "Not implemented" };
+  throw new Error("Template updates are managed from Superadmin");
 }
 
 export async function deleteTemplate(templateId: string) {
-  console.warn("Template deletion not yet implemented in backend");
-  return { success: false, message: "Not implemented" };
+  throw new Error("Template deletion is managed from Superadmin");
 }
 
 // Apply template endpoints - creates actual items from templates
@@ -945,55 +941,89 @@ export async function generateReport(payload: { type: "weekly" | "monthly"; form
 }
 
 // ----------- NOTIFICATIONS -----------
-// Note: Notifications endpoint not yet implemented in backend
-// Using mock data for now
 export async function getNotifications() {
-  // TODO: Implement /api/v1/notifications in backend
-  return { notifications: [], unreadCount: 0 };
+  const data = await api("/api/v1/notifications");
+  return Array.isArray(data) ? data : data?.notifications ?? [];
 }
 
 export async function markNotificationRead(notificationId: string) {
-  // TODO: Implement in backend
-  return { success: true };
+  return await api(`/api/v1/notifications/${notificationId}/read`, {
+    method: "PATCH",
+  });
 }
 
 export async function markAllNotificationsRead() {
-  // TODO: Implement in backend
-  return { success: true };
+  return await api("/api/v1/notifications/read-all", {
+    method: "PATCH",
+  });
 }
 
 export async function getUnreadNotificationCount() {
-  // TODO: Implement in backend
-  return { count: 0 };
+  const data = await api("/api/v1/notifications/unread-count");
+  return typeof data === "number" ? data : data?.count ?? 0;
 }
 
 // ----------- SUPPORT -----------
+function toApiEnum(value?: string) {
+  return value ? value.toUpperCase() : value;
+}
+
+function toWebEnum(value?: string | null) {
+  return value ? value.toLowerCase() : value;
+}
+
+function normalizeTicketComment(comment: any) {
+  return {
+    ...comment,
+    userName: comment?.userName ?? comment?.user?.name ?? comment?.user?.email ?? "Team member",
+  };
+}
+
+function normalizeSupportTicket(ticket: any) {
+  if (!ticket) return ticket;
+  return {
+    ...ticket,
+    status: toWebEnum(ticket.status),
+    priority: toWebEnum(ticket.priority),
+    comments: Array.isArray(ticket.comments)
+      ? ticket.comments.map(normalizeTicketComment)
+      : ticket.comments,
+  };
+}
+
 export async function getSupportTickets() {
-  return await api("/api/v1/support/tickets/my");
+  const data = await api("/api/v1/support/tickets/my");
+  const tickets = Array.isArray(data) ? data : data?.data ?? [];
+  return tickets.map(normalizeSupportTicket);
 }
 
 export async function createSupportTicket(payload: { subject: string; message: string; priority?: string }) {
-  return await api("/api/v1/support/tickets", {
+  const ticket = await api("/api/v1/support/tickets", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, priority: toApiEnum(payload.priority) }),
   });
+  return normalizeSupportTicket(ticket);
 }
 
 export async function getSupportTicket(ticketId: string) {
-  return await api(`/api/v1/support/tickets/${ticketId}`);
+  return normalizeSupportTicket(await api(`/api/v1/support/tickets/${ticketId}`));
 }
 
-// Note: Comments endpoint not implemented in backend yet
 export async function addTicketComment(ticketId: string, message: string) {
-  console.warn("Ticket comments not yet implemented in backend");
-  return { success: false, message: "Not implemented" };
+  return normalizeTicketComment(
+    await api(`/api/v1/support/tickets/${ticketId}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    }),
+  );
 }
 
 export async function updateTicketStatus(ticketId: string, status: string) {
-  return await api(`/api/v1/support/tickets/${ticketId}`, {
+  const ticket = await api(`/api/v1/support/tickets/${ticketId}`, {
     method: "PATCH",
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status: toApiEnum(status) }),
   });
+  return normalizeSupportTicket(ticket);
 }
 
 // ----------- ONBOARDING -----------
