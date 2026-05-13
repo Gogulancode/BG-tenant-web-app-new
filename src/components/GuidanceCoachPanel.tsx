@@ -111,7 +111,9 @@ export function GuidanceCoachPanel({
               <Sparkles className="h-3.5 w-3.5" />
               Momentum Coach
             </Badge>
-            <Badge variant="outline">Encouraging guidance</Badge>
+            <Badge variant="outline">
+              {guidance.summary.journeyStage ?? "Business Health"}
+            </Badge>
           </div>
 
           <h2 className="mt-4 text-2xl font-semibold tracking-normal text-foreground">
@@ -120,15 +122,26 @@ export function GuidanceCoachPanel({
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">
             {guidance.summary.message}
           </p>
+          {primaryCard?.why && (
+            <p className="mt-3 max-w-3xl rounded-md border bg-muted/40 px-3 py-2 text-sm leading-5 text-muted-foreground">
+              <span className="font-medium text-foreground">Why this matters:</span>{" "}
+              {primaryCard.why}
+            </p>
+          )}
 
           {primaryCard && (
-            <div className="mt-5">
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link to={normalizeRoute(primaryCard.actionRoute)}>
                 <Button className="gap-2">
                   {primaryCard.actionLabel}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
+              {primaryCard.afterActionMessage && (
+                <p className="text-sm text-muted-foreground">
+                  After action: {primaryCard.afterActionMessage}
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -175,6 +188,12 @@ export function GuidanceCoachPanel({
                     <p className="mt-1 text-sm leading-5 text-muted-foreground">
                       {card.message}
                     </p>
+                    {card.why && (
+                      <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                        <span className="font-medium text-foreground">Why:</span>{" "}
+                        {card.why}
+                      </p>
+                    )}
                     <Link
                       to={normalizeRoute(card.actionRoute)}
                       className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary"
