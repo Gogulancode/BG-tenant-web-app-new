@@ -20,6 +20,7 @@ import {
   type SalesSummaryResponse,
   type WeeklySalesSummaryResponse,
 } from "@/lib/api";
+import { invalidateOperatingSystem } from "@/lib/queryInvalidation";
 
 /**
  * Hook to fetch current period sales targets with achievement data
@@ -75,7 +76,13 @@ export function useSalesWeeklySummary(params?: {
   toWeek?: number;
 }) {
   return useQuery<WeeklySalesSummaryResponse>({
-    queryKey: ["sales", "weekly-summary", params?.year, params?.fromWeek, params?.toWeek],
+    queryKey: [
+      "sales",
+      "weekly-summary",
+      params?.year,
+      params?.fromWeek,
+      params?.toWeek,
+    ],
     queryFn: () => getSalesWeeklySummary(params),
     staleTime: 60_000, // 1 minute
     placeholderData: (previousData) => previousData, // Keep previous data while fetching
@@ -99,10 +106,11 @@ export function useSalesProspectSummary(month?: string) {
   });
 }
 
-function invalidateSalesProspectDependencies(queryClient: ReturnType<typeof useQueryClient>) {
+function invalidateSalesProspectDependencies(
+  queryClient: ReturnType<typeof useQueryClient>,
+) {
   queryClient.invalidateQueries({ queryKey: ["sales", "prospects"] });
-  queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
-  queryClient.invalidateQueries({ queryKey: ["reports", "business-profile"] });
+  invalidateOperatingSystem(queryClient);
 }
 
 export function useCreateSalesProspect() {
@@ -120,8 +128,13 @@ export function useUpdateSalesProspect() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: Partial<SalesProspectPayload> }) =>
-      updateSalesProspect(id, payload),
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: Partial<SalesProspectPayload>;
+    }) => updateSalesProspect(id, payload),
     onSuccess: () => {
       invalidateSalesProspectDependencies(queryClient);
     },

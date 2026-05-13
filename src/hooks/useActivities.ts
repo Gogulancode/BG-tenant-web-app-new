@@ -6,6 +6,7 @@ import {
   type ActivityPayload,
   type WeeklyActivitySummaryResponse,
 } from "@/lib/api";
+import { invalidateActivityOperatingData } from "@/lib/queryInvalidation";
 
 /**
  * Hook to fetch weekly activity summary comparing targets vs actual
@@ -29,8 +30,7 @@ export function useCreateActivity() {
   return useMutation({
     mutationFn: createActivity,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activities"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      invalidateActivityOperatingData(queryClient);
     },
   });
 }
@@ -39,11 +39,15 @@ export function useUpdateActivity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: Partial<ActivityPayload> }) =>
-      updateActivity(id, payload),
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: Partial<ActivityPayload>;
+    }) => updateActivity(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activities"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      invalidateActivityOperatingData(queryClient);
     },
   });
 }

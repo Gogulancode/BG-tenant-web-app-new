@@ -28,16 +28,57 @@ import {
   AchievementStagesSetupPayload,
   SubscriptionSelectionPayload,
 } from "@/lib/api";
+import { invalidateOperatingSystem } from "@/lib/queryInvalidation";
 
 export const ONBOARDING_STEPS = [
-  { id: "PROFILE", label: "Profile", stepNumber: 1, flagName: "profileCompleted" },
-  { id: "BUSINESS_IDENTITY", label: "Business Identity", stepNumber: 2, flagName: "businessIdentityCompleted" },
-  { id: "SALES_PLAN", label: "Sales Planning", stepNumber: 3, flagName: "salesPlanCompleted" },
-  { id: "ACTIVITY_CONFIG", label: "Activity Setup", stepNumber: 4, flagName: "activityConfigCompleted" },
-  { id: "SALES_CYCLE", label: "Sales Cycle", stepNumber: 5, flagName: "salesCycleCompleted" },
-  { id: "ACHIEVEMENT_STAGES", label: "Achievement Stages", stepNumber: 6, flagName: "achievementStagesCompleted" },
-  { id: "SUBSCRIPTION", label: "Subscription", stepNumber: 7, flagName: "subscriptionCompleted" },
-  { id: "VISUAL_SETUP", label: "Finish", stepNumber: 8, flagName: "visualSetupCompleted" },
+  {
+    id: "PROFILE",
+    label: "Profile",
+    stepNumber: 1,
+    flagName: "profileCompleted",
+  },
+  {
+    id: "BUSINESS_IDENTITY",
+    label: "Business Identity",
+    stepNumber: 2,
+    flagName: "businessIdentityCompleted",
+  },
+  {
+    id: "SALES_PLAN",
+    label: "Sales Planning",
+    stepNumber: 3,
+    flagName: "salesPlanCompleted",
+  },
+  {
+    id: "ACTIVITY_CONFIG",
+    label: "Activity Setup",
+    stepNumber: 4,
+    flagName: "activityConfigCompleted",
+  },
+  {
+    id: "SALES_CYCLE",
+    label: "Sales Cycle",
+    stepNumber: 5,
+    flagName: "salesCycleCompleted",
+  },
+  {
+    id: "ACHIEVEMENT_STAGES",
+    label: "Achievement Stages",
+    stepNumber: 6,
+    flagName: "achievementStagesCompleted",
+  },
+  {
+    id: "SUBSCRIPTION",
+    label: "Subscription",
+    stepNumber: 7,
+    flagName: "subscriptionCompleted",
+  },
+  {
+    id: "VISUAL_SETUP",
+    label: "Finish",
+    stepNumber: 8,
+    flagName: "visualSetupCompleted",
+  },
 ] as const;
 
 export type OnboardingStepId = (typeof ONBOARDING_STEPS)[number]["id"];
@@ -46,13 +87,22 @@ export type OnboardingStepId = (typeof ONBOARDING_STEPS)[number]["id"];
 const ONBOARDING_KEYS = {
   all: ["onboarding"] as const,
   progress: () => [...ONBOARDING_KEYS.all, "progress"] as const,
-  businessIdentity: () => [...ONBOARDING_KEYS.all, "business-identity"] as const,
+  businessIdentity: () =>
+    [...ONBOARDING_KEYS.all, "business-identity"] as const,
   salesPlan: () => [...ONBOARDING_KEYS.all, "sales-plan"] as const,
   activityConfig: () => [...ONBOARDING_KEYS.all, "activity-config"] as const,
   salesCycle: () => [...ONBOARDING_KEYS.all, "sales-cycle"] as const,
-  achievementStages: () => [...ONBOARDING_KEYS.all, "achievement-stages"] as const,
+  achievementStages: () =>
+    [...ONBOARDING_KEYS.all, "achievement-stages"] as const,
   subscription: () => [...ONBOARDING_KEYS.all, "subscription"] as const,
 };
+
+function invalidateOnboardingOperatingData(
+  queryClient: ReturnType<typeof useQueryClient>,
+) {
+  queryClient.invalidateQueries({ queryKey: ONBOARDING_KEYS.progress() });
+  invalidateOperatingSystem(queryClient);
+}
 
 // ============================================
 // ONBOARDING PROGRESS
@@ -74,6 +124,7 @@ export function useUpdateOnboarding() {
     mutationFn: (payload: UpdateOnboardingPayload) => updateOnboarding(payload),
     onSuccess: (data) => {
       queryClient.setQueryData(ONBOARDING_KEYS.progress(), data);
+      invalidateOperatingSystem(queryClient);
     },
     onError: (error: Error) => {
       toast({
@@ -93,9 +144,10 @@ export function useUpdateProfileOnboarding() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: ProfileOnboardingPayload) => updateOnboardingProfile(payload),
+    mutationFn: (payload: ProfileOnboardingPayload) =>
+      updateOnboardingProfile(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ONBOARDING_KEYS.progress() });
+      invalidateOnboardingOperatingData(queryClient);
       toast({
         title: "Profile saved!",
         description: "Your profile has been updated successfully.",
@@ -127,10 +179,13 @@ export function useUpsertBusinessIdentity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: BusinessIdentityPayload) => upsertBusinessIdentity(payload),
+    mutationFn: (payload: BusinessIdentityPayload) =>
+      upsertBusinessIdentity(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ONBOARDING_KEYS.progress() });
-      queryClient.invalidateQueries({ queryKey: ONBOARDING_KEYS.businessIdentity() });
+      invalidateOnboardingOperatingData(queryClient);
+      queryClient.invalidateQueries({
+        queryKey: ONBOARDING_KEYS.businessIdentity(),
+      });
       toast({
         title: "Business identity saved!",
         description: "Your business details have been updated.",
@@ -164,8 +219,9 @@ export function useUpsertSalesPlan() {
   return useMutation({
     mutationFn: (payload: SalesPlanPayload) => upsertSalesPlan(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ONBOARDING_KEYS.progress() });
+      invalidateOnboardingOperatingData(queryClient);
       queryClient.invalidateQueries({ queryKey: ONBOARDING_KEYS.salesPlan() });
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
       toast({
         title: "Sales plan saved!",
         description: "Your sales targets have been configured.",
@@ -197,10 +253,14 @@ export function useUpsertActivityConfiguration() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: ActivityConfigurationPayload) => upsertActivityConfiguration(payload),
+    mutationFn: (payload: ActivityConfigurationPayload) =>
+      upsertActivityConfiguration(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ONBOARDING_KEYS.progress() });
-      queryClient.invalidateQueries({ queryKey: ONBOARDING_KEYS.activityConfig() });
+      invalidateOnboardingOperatingData(queryClient);
+      queryClient.invalidateQueries({
+        queryKey: ONBOARDING_KEYS.activityConfig(),
+      });
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
       toast({
         title: "Activity settings saved!",
         description: "Your activity tracking preferences have been set.",
@@ -234,7 +294,7 @@ export function useUpsertSalesCycle() {
   return useMutation({
     mutationFn: (payload: SalesCycleSetupPayload) => upsertSalesCycle(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ONBOARDING_KEYS.progress() });
+      invalidateOnboardingOperatingData(queryClient);
       queryClient.invalidateQueries({ queryKey: ONBOARDING_KEYS.salesCycle() });
       toast({
         title: "Sales cycle saved!",
@@ -257,7 +317,7 @@ export function useApplyDefaultSalesCycle() {
   return useMutation({
     mutationFn: () => applyDefaultSalesCycle(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ONBOARDING_KEYS.progress() });
+      invalidateOnboardingOperatingData(queryClient);
       queryClient.invalidateQueries({ queryKey: ONBOARDING_KEYS.salesCycle() });
       toast({
         title: "Default stages applied!",
@@ -290,10 +350,13 @@ export function useUpsertAchievementStages() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: AchievementStagesSetupPayload) => upsertAchievementStages(payload),
+    mutationFn: (payload: AchievementStagesSetupPayload) =>
+      upsertAchievementStages(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ONBOARDING_KEYS.progress() });
-      queryClient.invalidateQueries({ queryKey: ONBOARDING_KEYS.achievementStages() });
+      invalidateOnboardingOperatingData(queryClient);
+      queryClient.invalidateQueries({
+        queryKey: ONBOARDING_KEYS.achievementStages(),
+      });
       toast({
         title: "Achievement stages saved!",
         description: "Your milestone targets have been configured.",
@@ -325,10 +388,13 @@ export function useSelectSubscription() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: SubscriptionSelectionPayload) => selectSubscription(payload),
+    mutationFn: (payload: SubscriptionSelectionPayload) =>
+      selectSubscription(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ONBOARDING_KEYS.progress() });
-      queryClient.invalidateQueries({ queryKey: ONBOARDING_KEYS.subscription() });
+      invalidateOnboardingOperatingData(queryClient);
+      queryClient.invalidateQueries({
+        queryKey: ONBOARDING_KEYS.subscription(),
+      });
       toast({
         title: "Subscription selected!",
         description: "Your plan has been saved.",
@@ -354,7 +420,7 @@ export function useCompleteOnboarding() {
   return useMutation({
     mutationFn: () => completeOnboarding(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ONBOARDING_KEYS.progress() });
+      invalidateOnboardingOperatingData(queryClient);
       toast({
         title: "Welcome to BG Accountability!",
         description: "Your setup is complete. Let's get started!",
@@ -376,13 +442,13 @@ export function useCompleteOnboarding() {
 
 export function isStepCompleted(
   stepsCompleted: string[],
-  stepId: OnboardingStepId
+  stepId: OnboardingStepId,
 ): boolean {
   return stepsCompleted.includes(stepId);
 }
 
 export function getNextIncompleteStep(
-  stepsCompleted: string[]
+  stepsCompleted: string[],
 ): OnboardingStepId | null {
   for (const step of ONBOARDING_STEPS) {
     if (!stepsCompleted.includes(step.id)) {

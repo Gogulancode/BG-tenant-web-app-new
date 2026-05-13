@@ -35,7 +35,13 @@ import {
 import type { DashboardSummaryResponse } from "@/lib/api";
 import { useCreateActivity } from "@/hooks/useActivities";
 import { formatCurrencyINR, formatPercent } from "@/lib/utils";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -44,6 +50,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { invalidateSalesOperatingData } from "@/lib/queryInvalidation";
 
 interface Outcome {
   id: string;
@@ -87,8 +94,10 @@ function percent(value?: number) {
 
 function MomentumCard({ data }: { data?: DashboardSummaryResponse }) {
   const cockpit = data?.cockpit;
-  const score = cockpit?.insights?.momentumScore ?? data?.insights?.momentumScore ?? 0;
-  const streak = cockpit?.insights?.streakCount ?? data?.insights?.streakCount ?? 0;
+  const score =
+    cockpit?.insights?.momentumScore ?? data?.insights?.momentumScore ?? 0;
+  const streak =
+    cockpit?.insights?.streakCount ?? data?.insights?.streakCount ?? 0;
   const recommendation =
     cockpit?.insights?.recommendations?.[0] ||
     "Move one sales, activity, or outcome item forward today.";
@@ -99,13 +108,17 @@ function MomentumCard({ data }: { data?: DashboardSummaryResponse }) {
         <div>
           <div className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-primary" />
-            <p className="font-medium text-foreground">Today’s execution focus</p>
+            <p className="font-medium text-foreground">
+              Today’s execution focus
+            </p>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">{recommendation}</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-md bg-background p-3 text-center">
-            <p className="text-2xl font-bold text-primary">{Math.round(score)}%</p>
+            <p className="text-2xl font-bold text-primary">
+              {Math.round(score)}%
+            </p>
             <p className="text-xs text-muted-foreground">Momentum</p>
           </div>
           <div className="rounded-md bg-background p-3 text-center">
@@ -121,13 +134,17 @@ function MomentumCard({ data }: { data?: DashboardSummaryResponse }) {
 function SalesLogCard({
   cockpit,
 }: {
-  cockpit: NonNullable<Awaited<ReturnType<typeof getDashboardSummary>>["cockpit"]>;
+  cockpit: NonNullable<
+    Awaited<ReturnType<typeof getDashboardSummary>>["cockpit"]
+  >;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const currentDate = new Date();
   const [achieved, setAchieved] = useState(
-    cockpit.sales.achievedThisWeek ? String(cockpit.sales.achievedThisWeek) : "",
+    cockpit.sales.achievedThisWeek
+      ? String(cockpit.sales.achievedThisWeek)
+      : "",
   );
   const [orders, setOrders] = useState("");
   const [notes, setNotes] = useState("");
@@ -142,8 +159,7 @@ function SalesLogCard({
         notes: notes || undefined,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["sales"] });
+      invalidateSalesOperatingData(queryClient);
       toast({ title: "Weekly sales saved" });
     },
     onError: (error: Error) => {
@@ -163,16 +179,22 @@ function SalesLogCard({
           Weekly Sales Log
         </CardTitle>
         <CardDescription>
-          {formatCurrencyINR(cockpit.sales.weeklyGap)} left against this week’s target
+          {formatCurrencyINR(cockpit.sales.weeklyGap)} left against this week’s
+          target
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>{formatCurrencyINR(cockpit.sales.achievedThisWeek)} achieved</span>
+            <span>
+              {formatCurrencyINR(cockpit.sales.achievedThisWeek)} achieved
+            </span>
             <span>{percent(cockpit.sales.weeklyAchievementPercent)}</span>
           </div>
-          <Progress value={Math.min(100, cockpit.sales.weeklyAchievementPercent)} className="mt-2 h-2" />
+          <Progress
+            value={Math.min(100, cockpit.sales.weeklyAchievementPercent)}
+            className="mt-2 h-2"
+          />
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input
@@ -218,7 +240,9 @@ function SalesLogCard({
 function ActivityExecutionCard({
   cockpit,
 }: {
-  cockpit: NonNullable<Awaited<ReturnType<typeof getDashboardSummary>>["cockpit"]>;
+  cockpit: NonNullable<
+    Awaited<ReturnType<typeof getDashboardSummary>>["cockpit"]
+  >;
 }) {
   const { toast } = useToast();
   const createActivity = useCreateActivity();
@@ -233,7 +257,9 @@ function ActivityExecutionCard({
       {
         title: activity.category || "Business development activity",
         category: activity.category || "Sales",
-        description: [activity.impact, activity.measurability].filter(Boolean).join(" | "),
+        description: [activity.impact, activity.measurability]
+          .filter(Boolean)
+          .join(" | "),
         priority:
           activity.priority === "HIGH"
             ? "High"
@@ -263,11 +289,15 @@ function ActivityExecutionCard({
           Activity Execution
         </CardTitle>
         <CardDescription>
-          {cockpit.activities.actualThisWeek} of {cockpit.activities.targetThisWeek} weekly actions done
+          {cockpit.activities.actualThisWeek} of{" "}
+          {cockpit.activities.targetThisWeek} weekly actions done
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Progress value={Math.min(100, cockpit.activities.completionPercent)} className="h-2" />
+        <Progress
+          value={Math.min(100, cockpit.activities.completionPercent)}
+          className="h-2"
+        />
         {cockpit.activities.dueToday.length > 0 ? (
           <div className="space-y-3">
             {cockpit.activities.dueToday.slice(0, 4).map((activity) => (
@@ -277,12 +307,18 @@ function ActivityExecutionCard({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-medium text-foreground">{activity.category}</p>
+                    <p className="font-medium text-foreground">
+                      {activity.category}
+                    </p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {activity.impact || activity.measurability || "Complete this action today."}
+                      {activity.impact ||
+                        activity.measurability ||
+                        "Complete this action today."}
                     </p>
                   </div>
-                  <Badge variant="outline">{formatLabel(activity.priority)}</Badge>
+                  <Badge variant="outline">
+                    {formatLabel(activity.priority)}
+                  </Badge>
                 </div>
                 <Button
                   variant="outline"
@@ -317,7 +353,9 @@ function ActivityExecutionCard({
 function CrmFollowUpCard({
   cockpit,
 }: {
-  cockpit: NonNullable<Awaited<ReturnType<typeof getDashboardSummary>>["cockpit"]>;
+  cockpit: NonNullable<
+    Awaited<ReturnType<typeof getDashboardSummary>>["cockpit"]
+  >;
 }) {
   return (
     <Card>
@@ -338,10 +376,16 @@ function CrmFollowUpCard({
               className="flex items-center justify-between gap-3 rounded-md bg-muted/50 p-3"
             >
               <div className="min-w-0">
-                <p className="font-medium text-foreground">{prospect.prospectName}</p>
-                <p className="text-xs text-muted-foreground">{formatLabel(prospect.status)}</p>
+                <p className="font-medium text-foreground">
+                  {prospect.prospectName}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {formatLabel(prospect.status)}
+                </p>
               </div>
-              <Badge variant="outline">{formatCurrencyINR(prospect.proposalValue || 0)}</Badge>
+              <Badge variant="outline">
+                {formatCurrencyINR(prospect.proposalValue || 0)}
+              </Badge>
             </div>
           ))
         ) : (
@@ -369,8 +413,11 @@ function OutcomesCard({
   isLoading: boolean;
   onToggle: (outcome: Outcome) => void;
 }) {
-  const completed = outcomes.filter((outcome) => outcome.status === "Done").length;
-  const progress = outcomes.length > 0 ? (completed / outcomes.length) * 100 : 0;
+  const completed = outcomes.filter(
+    (outcome) => outcome.status === "Done",
+  ).length;
+  const progress =
+    outcomes.length > 0 ? (completed / outcomes.length) * 100 : 0;
 
   if (isLoading) {
     return (
@@ -403,7 +450,9 @@ function OutcomesCard({
         {outcomes.length === 0 ? (
           <div className="rounded-md border border-dashed p-4 text-center">
             <Circle className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">No outcomes set for this week.</p>
+            <p className="text-sm text-muted-foreground">
+              No outcomes set for this week.
+            </p>
             <Link to="/outcomes">
               <Button size="sm" className="mt-3">
                 <Plus className="mr-2 h-4 w-4" />
@@ -423,7 +472,9 @@ function OutcomesCard({
               />
               <span
                 className={`flex-1 text-sm ${
-                  outcome.status === "Done" ? "text-muted-foreground line-through" : ""
+                  outcome.status === "Done"
+                    ? "text-muted-foreground line-through"
+                    : ""
                 }`}
               >
                 {outcome.title}
@@ -479,12 +530,16 @@ function QuickLogCard({
           <BarChart3 className="h-5 w-5 text-primary" />
           Quick Metrics
         </CardTitle>
-        <CardDescription>Log today’s numbers without leaving the page</CardDescription>
+        <CardDescription>
+          Log today’s numbers without leaving the page
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {metrics.length === 0 ? (
           <div className="rounded-md border border-dashed p-4 text-center">
-            <p className="text-sm text-muted-foreground">No metrics configured yet.</p>
+            <p className="text-sm text-muted-foreground">
+              No metrics configured yet.
+            </p>
             <Link to="/metrics">
               <Button size="sm" className="mt-3">
                 Add Metric
@@ -493,7 +548,10 @@ function QuickLogCard({
           </div>
         ) : (
           metrics.slice(0, 4).map((metric) => (
-            <div key={metric.id} className="flex items-center gap-2 rounded-md bg-muted/40 p-2">
+            <div
+              key={metric.id}
+              className="flex items-center gap-2 rounded-md bg-muted/40 p-2"
+            >
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{metric.name}</p>
                 {metric.target && (
@@ -507,7 +565,10 @@ function QuickLogCard({
                 placeholder="Value"
                 value={values[metric.id] || ""}
                 onChange={(event) =>
-                  setValues((current) => ({ ...current, [metric.id]: event.target.value }))
+                  setValues((current) => ({
+                    ...current,
+                    [metric.id]: event.target.value,
+                  }))
                 }
                 className="h-9 w-24"
               />
@@ -564,7 +625,9 @@ function ReflectionCard() {
       <Card className="border-green-200 bg-green-50">
         <CardContent className="py-6 text-center">
           <Sparkles className="mx-auto mb-2 h-8 w-8 text-green-600" />
-          <p className="font-medium text-green-800">Today’s reflection is saved.</p>
+          <p className="font-medium text-green-800">
+            Today’s reflection is saved.
+          </p>
         </CardContent>
       </Card>
     );
@@ -606,7 +669,11 @@ function ReflectionCard() {
           value={challenges}
           onChange={(event) => setChallenges(event.target.value)}
         />
-        <Button className="w-full" disabled={!mood || isSubmitting} onClick={handleSubmit}>
+        <Button
+          className="w-full"
+          disabled={!mood || isSubmitting}
+          onClick={handleSubmit}
+        >
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -651,7 +718,7 @@ export default function Today() {
 
   const outcomes: Outcome[] = Array.isArray(outcomesData)
     ? outcomesData
-    : outcomesData?.data ?? [];
+    : (outcomesData?.data ?? []);
   const metrics: Metric[] = Array.isArray(metricsData) ? metricsData : [];
   const cockpit = dashboardData?.cockpit;
 
@@ -716,12 +783,18 @@ export default function Today() {
           disabled={isFetching}
           className="w-full gap-2 sm:w-auto"
         >
-          <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+          />
           Refresh
         </Button>
       </div>
 
-      {dashboardLoading ? <Skeleton className="h-32 w-full" /> : <MomentumCard data={dashboardData} />}
+      {dashboardLoading ? (
+        <Skeleton className="h-32 w-full" />
+      ) : (
+        <MomentumCard data={dashboardData} />
+      )}
 
       {cockpit ? (
         <>
@@ -733,25 +806,31 @@ export default function Today() {
                   {formatCurrencyINR(cockpit.sales.weeklyGap)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {percent(cockpit.sales.weeklyAchievementPercent)} of weekly target
+                  {percent(cockpit.sales.weeklyAchievementPercent)} of weekly
+                  target
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <p className="text-sm text-muted-foreground">Activity Execution</p>
+                <p className="text-sm text-muted-foreground">
+                  Activity Execution
+                </p>
                 <p className="mt-2 text-2xl font-semibold">
                   {percent(cockpit.activities.completionPercent)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {cockpit.activities.actualThisWeek}/{cockpit.activities.targetThisWeek} done
+                  {cockpit.activities.actualThisWeek}/
+                  {cockpit.activities.targetThisWeek} done
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">CRM Follow-ups</p>
-                <p className="mt-2 text-2xl font-semibold">{cockpit.crm.activeFollowUps}</p>
+                <p className="mt-2 text-2xl font-semibold">
+                  {cockpit.crm.activeFollowUps}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {formatCurrencyINR(cockpit.crm.pipelineValue)} pipeline
                 </p>
@@ -783,7 +862,9 @@ export default function Today() {
       ) : (
         <Card>
           <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground">Today’s execution workspace is loading.</p>
+            <p className="text-muted-foreground">
+              Today’s execution workspace is loading.
+            </p>
           </CardContent>
         </Card>
       )}

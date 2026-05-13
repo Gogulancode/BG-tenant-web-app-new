@@ -14,10 +14,20 @@ import {
   getWeeklySalesEntries,
   type WeeklySalesEntryResponse,
 } from "../lib/api";
-import { useSalesSummary, useWeeklyTargets, useSalesWeeklySummary } from "@/hooks/useSales";
+import {
+  useSalesSummary,
+  useWeeklyTargets,
+  useSalesWeeklySummary,
+} from "@/hooks/useSales";
 import { useWeeklyActivitySummary } from "@/hooks/useActivities";
 import { useWeeklyOutcomesSummary } from "@/hooks/useOutcomes";
-import { formatCurrencyINR, formatPercent, clamp, getCurrentWeekNumber } from "@/lib/utils";
+import { invalidateSalesOperatingData } from "@/lib/queryInvalidation";
+import {
+  formatCurrencyINR,
+  formatPercent,
+  clamp,
+  getCurrentWeekNumber,
+} from "@/lib/utils";
 import {
   SalesProspectsPanel,
   SalesTrendChart,
@@ -28,7 +38,13 @@ import {
 } from "@/components/sales";
 import { WeeklyActivitySummary } from "@/components/activities";
 import { WeeklyOutcomesSummary } from "@/components/outcomes";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -62,12 +78,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Tooltip,
   TooltipContent,
@@ -75,7 +86,25 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { TrendingUp, DollarSign, Target, Loader2, AlertTriangle, Calendar, Percent, RefreshCw, Download, BarChart3, CheckCircle, XCircle, PlusCircle, HelpCircle, ChevronLeft, ChevronRight, History } from "lucide-react";
+import {
+  TrendingUp,
+  DollarSign,
+  Target,
+  Loader2,
+  AlertTriangle,
+  Calendar,
+  Percent,
+  RefreshCw,
+  Download,
+  BarChart3,
+  CheckCircle,
+  XCircle,
+  PlusCircle,
+  HelpCircle,
+  ChevronLeft,
+  ChevronRight,
+  History,
+} from "lucide-react";
 
 type SalesPlan = {
   weeklyRevenueTarget: number;
@@ -91,7 +120,14 @@ type SalesDeal = {
   expectedCloseDate: string;
 };
 
-const stages = ["Lead", "Qualified", "Proposal Sent", "Negotiation", "Won", "Lost"];
+const stages = [
+  "Lead",
+  "Qualified",
+  "Proposal Sent",
+  "Negotiation",
+  "Won",
+  "Lost",
+];
 
 const salesPlanSchema = z.object({
   weeklyRevenueTarget: z.coerce.number().min(0, "Must be 0 or greater"),
@@ -119,7 +155,10 @@ const weeklySalesSchema = z.object({
 type WeeklySalesFormData = z.infer<typeof weeklySalesSchema>;
 
 // Helper to get week date range
-function getWeekDateRange(year: number, week: number): { start: Date; end: Date } {
+function getWeekDateRange(
+  year: number,
+  week: number,
+): { start: Date; end: Date } {
   const jan1 = new Date(year, 0, 1);
   const daysToAdd = (week - 1) * 7 - jan1.getDay();
   const start = new Date(jan1);
@@ -131,8 +170,8 @@ function getWeekDateRange(year: number, week: number): { start: Date; end: Date 
 
 function formatWeekRange(year: number, week: number): string {
   const { start, end } = getWeekDateRange(year, week);
-  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
-  return `${start.toLocaleDateString('en-IN', opts)} - ${end.toLocaleDateString('en-IN', opts)}`;
+  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+  return `${start.toLocaleDateString("en-IN", opts)} - ${end.toLocaleDateString("en-IN", opts)}`;
 }
 
 // ============================================
@@ -140,11 +179,13 @@ function formatWeekRange(year: number, week: number): string {
 // ============================================
 function LogWeeklySalesSection() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const currentYear = new Date().getFullYear();
   const currentWeek = getCurrentWeekNumber();
-  
+
   const [selectedWeek, setSelectedWeek] = useState(currentWeek);
-  const [weeklyEntry, setWeeklyEntry] = useState<WeeklySalesEntryResponse | null>(null);
+  const [weeklyEntry, setWeeklyEntry] =
+    useState<WeeklySalesEntryResponse | null>(null);
   const [allEntries, setAllEntries] = useState<WeeklySalesEntryResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [weekLoading, setWeekLoading] = useState(false); // Separate loading for week navigation
@@ -171,7 +212,7 @@ function LogWeeklySalesSection() {
         ]);
         setWeeklyEntry(entry);
         setAllEntries(entries.sort((a, b) => b.week - a.week));
-        
+
         if (entry && entry.achieved > 0) {
           form.reset({
             achieved: entry.achieved,
@@ -191,13 +232,13 @@ function LogWeeklySalesSection() {
   // Load selected week's entry when week changes
   useEffect(() => {
     if (loading) return; // Skip during initial load
-    
+
     async function loadWeekData() {
       setWeekLoading(true);
       try {
         const entry = await getWeeklySalesEntry(currentYear, selectedWeek);
         setWeeklyEntry(entry);
-        
+
         if (entry && entry.achieved > 0) {
           form.reset({
             achieved: entry.achieved,
@@ -226,7 +267,7 @@ function LogWeeklySalesSection() {
         orders: data.orders,
         notes: data.notes,
       });
-      
+
       // Refresh all data
       const [updatedEntry, entries] = await Promise.all([
         getWeeklySalesEntry(currentYear, selectedWeek),
@@ -234,14 +275,16 @@ function LogWeeklySalesSection() {
       ]);
       setWeeklyEntry(updatedEntry);
       setAllEntries(entries.sort((a, b) => b.week - a.week));
-      
+      invalidateSalesOperatingData(queryClient);
+
       toast({
         title: `Week ${selectedWeek} Sales ${weeklyEntry?.achieved ? "Updated" : "Logged"}!`,
-        description: updatedEntry.status === "exceeded" 
-          ? "🎉 Target exceeded!"
-          : updatedEntry.status === "achieved"
-          ? "✅ On track!"
-          : `📊 ${updatedEntry.achievementPercent.toFixed(0)}% achieved.`,
+        description:
+          updatedEntry.status === "exceeded"
+            ? "🎉 Target exceeded!"
+            : updatedEntry.status === "achieved"
+              ? "✅ On track!"
+              : `📊 ${updatedEntry.achievementPercent.toFixed(0)}% achieved.`,
       });
     } catch (error) {
       toast({
@@ -281,7 +324,7 @@ function LogWeeklySalesSection() {
 
   const getStatusBadge = (entry: WeeklySalesEntryResponse | null) => {
     if (!entry || entry.achieved === 0) return null;
-    
+
     switch (entry.status) {
       case "exceeded":
         return (
@@ -307,7 +350,7 @@ function LogWeeklySalesSection() {
   };
 
   // Get logged weeks count
-  const loggedWeeksCount = allEntries.filter(e => e.achieved > 0).length;
+  const loggedWeeksCount = allEntries.filter((e) => e.achieved > 0).length;
 
   return (
     <Card className="border-primary/20">
@@ -330,7 +373,10 @@ function LogWeeklySalesSection() {
         </div>
       </CardHeader>
       <CardContent>
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "log" | "history")}>
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as "log" | "history")}
+        >
           <TabsList className="grid w-full grid-cols-2 mb-4">
             <TabsTrigger value="log" className="gap-2">
               <PlusCircle className="h-4 w-4" />
@@ -353,7 +399,7 @@ function LogWeeklySalesSection() {
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              
+
               <div className="text-center min-w-[180px]">
                 {weekLoading ? (
                   <div className="flex items-center justify-center gap-2">
@@ -366,7 +412,9 @@ function LogWeeklySalesSection() {
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span className="font-semibold">Week {selectedWeek}</span>
                       {selectedWeek === currentWeek && (
-                        <Badge variant="outline" className="text-xs">Current</Badge>
+                        <Badge variant="outline" className="text-xs">
+                          Current
+                        </Badge>
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">
@@ -375,7 +423,7 @@ function LogWeeklySalesSection() {
                   </>
                 )}
               </div>
-              
+
               <Button
                 variant="ghost"
                 size="icon"
@@ -391,20 +439,28 @@ function LogWeeklySalesSection() {
               <div className="p-4 rounded-lg border bg-card">
                 <div className="grid grid-cols-2 gap-4 mb-3">
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Weekly Target</p>
-                    <p className="text-xl font-bold">{formatCurrencyINR(weeklyEntry.target)}</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                      Weekly Target
+                    </p>
+                    <p className="text-xl font-bold">
+                      {formatCurrencyINR(weeklyEntry.target)}
+                    </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Achieved</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                      Achieved
+                    </p>
                     <p className="text-xl font-bold">
-                      {weeklyEntry.achieved > 0 ? formatCurrencyINR(weeklyEntry.achieved) : "—"}
+                      {weeklyEntry.achieved > 0
+                        ? formatCurrencyINR(weeklyEntry.achieved)
+                        : "—"}
                     </p>
                   </div>
                 </div>
                 {weeklyEntry.achieved > 0 && (
                   <>
-                    <Progress 
-                      value={clamp(weeklyEntry.achievementPercent, 0, 100)} 
+                    <Progress
+                      value={clamp(weeklyEntry.achievementPercent, 0, 100)}
                       className="h-2"
                     />
                     <div className="flex justify-between mt-1">
@@ -420,100 +476,123 @@ function LogWeeklySalesSection() {
 
             {/* Entry Form */}
             {!weekLoading && (
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="achieved"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sales Revenue (₹)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          min="0" 
-                          placeholder="e.g., 150000" 
-                          {...field} 
-                          disabled={weekLoading}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Total revenue closed/collected this week
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <Form {...form}>
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  className="space-y-4"
+                >
+                  <FormField
+                    control={form.control}
+                    name="achieved"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sales Revenue (₹)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="e.g., 150000"
+                            {...field}
+                            disabled={weekLoading}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Total revenue closed/collected this week
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="orders"
-                  render={({ field }) => (
-                    <FormItem>
-                      <div className="flex items-center gap-2">
-                        <FormLabel>Number of Deals/Orders</FormLabel>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
-                              <p className="font-semibold mb-1">Deals vs Outcomes</p>
-                              <p className="text-sm">
-                                <strong>Deals/Orders:</strong> Count of sales transactions closed (invoices, orders).<br/><br/>
-                                <strong>Outcomes:</strong> Weekly goals you commit to (e.g., "Close 3 deals", "Launch campaign").
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        <Badge variant="outline" className="text-xs">Optional</Badge>
-                      </div>
-                      <FormControl>
-                        <Input 
-                          type="number"
-                          min="0" 
-                          placeholder="e.g., 5" 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        How many individual deals or orders did you close?
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="orders"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center gap-2">
+                          <FormLabel>Number of Deals/Orders</FormLabel>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p className="font-semibold mb-1">
+                                  Deals vs Outcomes
+                                </p>
+                                <p className="text-sm">
+                                  <strong>Deals/Orders:</strong> Count of sales
+                                  transactions closed (invoices, orders).
+                                  <br />
+                                  <br />
+                                  <strong>Outcomes:</strong> Weekly goals you
+                                  commit to (e.g., "Close 3 deals", "Launch
+                                  campaign").
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <Badge variant="outline" className="text-xs">
+                            Optional
+                          </Badge>
+                        </div>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="e.g., 5"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          How many individual deals or orders did you close?
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notes <Badge variant="outline" className="text-xs ml-1">Optional</Badge></FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="e.g., Closed ABC Corp deal, 2 renewals" 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Notes{" "}
+                          <Badge variant="outline" className="text-xs ml-1">
+                            Optional
+                          </Badge>
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="e.g., Closed ABC Corp deal, 2 renewals"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <Button type="submit" disabled={submitting || weekLoading} className="w-full">
-                  {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  {weeklyEntry && weeklyEntry.achieved > 0 
-                    ? `Update Week ${selectedWeek} Sales` 
-                    : `Log Week ${selectedWeek} Sales`}
-                </Button>
-              </form>
-            </Form>
+                  <Button
+                    type="submit"
+                    disabled={submitting || weekLoading}
+                    className="w-full"
+                  >
+                    {submitting && (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    )}
+                    {weeklyEntry && weeklyEntry.achieved > 0
+                      ? `Update Week ${selectedWeek} Sales`
+                      : `Log Week ${selectedWeek} Sales`}
+                  </Button>
+                </form>
+              </Form>
             )}
           </TabsContent>
 
           <TabsContent value="history">
-            {allEntries.filter(e => e.achieved > 0).length === 0 ? (
+            {allEntries.filter((e) => e.achieved > 0).length === 0 ? (
               <EmptyState
                 icon={History}
                 title="No sales logged yet"
@@ -533,40 +612,44 @@ function LogWeeklySalesSection() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {allEntries.filter(e => e.achieved > 0).map((entry) => (
-                      <TableRow key={entry.week}>
-                        <TableCell className="font-medium">
-                          Week {entry.week}
-                          {entry.week === currentWeek && (
-                            <Badge variant="outline" className="ml-2 text-xs">Current</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
-                          {formatWeekRange(entry.year, entry.week)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrencyINR(entry.target)}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatCurrencyINR(entry.achieved)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {getStatusBadge(entry)}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedWeek(entry.week);
-                              setActiveTab("log");
-                            }}
-                          >
-                            Edit
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {allEntries
+                      .filter((e) => e.achieved > 0)
+                      .map((entry) => (
+                        <TableRow key={entry.week}>
+                          <TableCell className="font-medium">
+                            Week {entry.week}
+                            {entry.week === currentWeek && (
+                              <Badge variant="outline" className="ml-2 text-xs">
+                                Current
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">
+                            {formatWeekRange(entry.year, entry.week)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatCurrencyINR(entry.target)}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {formatCurrencyINR(entry.achieved)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {getStatusBadge(entry)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedWeek(entry.week);
+                                setActiveTab("log");
+                              }}
+                            >
+                              Edit
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                   </TableBody>
                 </Table>
               </div>
@@ -582,7 +665,11 @@ function LogWeeklySalesSection() {
 // Weekly Targets Section Component
 // ============================================
 function WeeklyTargetsSection() {
-  const { data: summary, isLoading: summaryLoading, isError: summaryError } = useSalesSummary();
+  const {
+    data: summary,
+    isLoading: summaryLoading,
+    isError: summaryError,
+  } = useSalesSummary();
   const { data: weeklyTargets, isLoading: targetsLoading } = useWeeklyTargets();
 
   const targets = summary?.targets;
@@ -591,11 +678,15 @@ function WeeklyTargetsSection() {
   // Get next 6 weeks from current week
   const upcomingWeeks = useMemo(() => {
     if (!weeklyTargets || weeklyTargets.length === 0) return [];
-    const currentWeek = summary?.targets ? Math.max(1, new Date().getMonth() + 1) : 1;
+    const currentWeek = summary?.targets
+      ? Math.max(1, new Date().getMonth() + 1)
+      : 1;
     // Find current week index (1-based week number in year)
     const now = new Date();
     const startOfYear = new Date(now.getFullYear(), 0, 1);
-    const dayOfYear = Math.floor((now.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000));
+    const dayOfYear = Math.floor(
+      (now.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000),
+    );
     const weekOfYear = Math.ceil((dayOfYear + startOfYear.getDay() + 1) / 7);
     const startIdx = Math.min(weekOfYear - 1, weeklyTargets.length - 6);
     return weeklyTargets.slice(Math.max(0, startIdx), startIdx + 6);
@@ -624,7 +715,9 @@ function WeeklyTargetsSection() {
       <Alert variant="destructive">
         <AlertTriangle className="h-4 w-4" />
         <AlertTitle>Error</AlertTitle>
-        <AlertDescription>Failed to load sales targets. Please try again.</AlertDescription>
+        <AlertDescription>
+          Failed to load sales targets. Please try again.
+        </AlertDescription>
       </Alert>
     );
   }
@@ -636,7 +729,10 @@ function WeeklyTargetsSection() {
         <AlertTriangle className="h-4 w-4" />
         <AlertTitle>Sales Plan Not Set</AlertTitle>
         <AlertDescription className="flex flex-col gap-3">
-          <span>Complete the onboarding Sales Planning step to generate weekly and monthly targets.</span>
+          <span>
+            Complete the onboarding Sales Planning step to generate weekly and
+            monthly targets.
+          </span>
           <Button asChild size="sm" className="w-fit">
             <Link to="/onboarding">Go to Onboarding</Link>
           </Button>
@@ -702,7 +798,8 @@ function WeeklyTargetsSection() {
           <div className="flex items-center justify-between text-sm mb-2">
             <span className="text-muted-foreground">Weekly Progress</span>
             <span className="font-medium">
-              {formatCurrencyINR(targets?.achievedThisWeek ?? 0)} / {formatCurrencyINR(targets?.weeklyTarget ?? 0)}
+              {formatCurrencyINR(targets?.achievedThisWeek ?? 0)} /{" "}
+              {formatCurrencyINR(targets?.weeklyTarget ?? 0)}
             </span>
           </div>
           <Progress value={progressValue} className="h-3" />
@@ -733,7 +830,9 @@ function WeeklyTargetsSection() {
               <TableBody>
                 {upcomingWeeks.map((week) => (
                   <TableRow key={week.weekNumber}>
-                    <TableCell className="font-medium">Week {week.weekNumber}</TableCell>
+                    <TableCell className="font-medium">
+                      Week {week.weekNumber}
+                    </TableCell>
                     <TableCell>{week.monthName}</TableCell>
                     <TableCell className="text-right">
                       {formatCurrencyINR(week.weeklyTarget)}
@@ -754,10 +853,10 @@ export default function Sales() {
   const [deals, setDeals] = useState<SalesDeal[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // Weekly Trend state
-  const [weekRangeOption, setWeekRangeOption] = useState<WeekRangeOption>("last6");
+  const [weekRangeOption, setWeekRangeOption] =
+    useState<WeekRangeOption>("last6");
   const [customFromWeek, setCustomFromWeek] = useState(1);
   const [customToWeek, setCustomToWeek] = useState(getCurrentWeekNumber());
 
@@ -765,26 +864,46 @@ export default function Sales() {
   const { fromWeek, toWeek, year } = useMemo(() => {
     const currentWeek = getCurrentWeekNumber();
     const currentYear = new Date().getFullYear();
-    
+
     switch (weekRangeOption) {
       case "last4":
-        return { fromWeek: Math.max(1, currentWeek - 3), toWeek: currentWeek, year: currentYear };
+        return {
+          fromWeek: Math.max(1, currentWeek - 3),
+          toWeek: currentWeek,
+          year: currentYear,
+        };
       case "last6":
-        return { fromWeek: Math.max(1, currentWeek - 5), toWeek: currentWeek, year: currentYear };
+        return {
+          fromWeek: Math.max(1, currentWeek - 5),
+          toWeek: currentWeek,
+          year: currentYear,
+        };
       case "last12":
-        return { fromWeek: Math.max(1, currentWeek - 11), toWeek: currentWeek, year: currentYear };
+        return {
+          fromWeek: Math.max(1, currentWeek - 11),
+          toWeek: currentWeek,
+          year: currentYear,
+        };
       case "custom":
-        return { fromWeek: customFromWeek, toWeek: customToWeek, year: currentYear };
+        return {
+          fromWeek: customFromWeek,
+          toWeek: customToWeek,
+          year: currentYear,
+        };
       default:
-        return { fromWeek: Math.max(1, currentWeek - 5), toWeek: currentWeek, year: currentYear };
+        return {
+          fromWeek: Math.max(1, currentWeek - 5),
+          toWeek: currentWeek,
+          year: currentYear,
+        };
     }
   }, [weekRangeOption, customFromWeek, customToWeek]);
 
   // Weekly summary query
-  const { 
-    data: weeklySummary, 
-    isLoading: weeklySummaryLoading, 
-    refetch: refetchWeeklySummary 
+  const {
+    data: weeklySummary,
+    isLoading: weeklySummaryLoading,
+    refetch: refetchWeeklySummary,
   } = useSalesWeeklySummary({ year, fromWeek, toWeek });
 
   // Weekly activity summary (current week only)
@@ -944,7 +1063,7 @@ export default function Sales() {
 
   return (
     <div className="space-y-6">
-      <PageHeader 
+      <PageHeader
         title="Sales CRM & Revenue Operations"
         description="Operate the monthly pipeline, follow-ups, sales targets, and weekly revenue rhythm from one place."
       />
@@ -956,322 +1075,376 @@ export default function Sales() {
         </TabsList>
 
         <TabsContent value="overview" className="flex flex-col gap-6">
+          {/* LOG WEEKLY SALES - Primary action */}
+          <LogWeeklySalesSection />
 
-      {/* LOG WEEKLY SALES - Primary action */}
-      <LogWeeklySalesSection />
+          {/* WEEKLY TARGETS KPI STRIP */}
+          <WeeklyTargetsSection />
 
-      {/* WEEKLY TARGETS KPI STRIP */}
-      <WeeklyTargetsSection />
-
-      {/* WEEKLY ACTIVITY EXECUTION (Leading Indicators) */}
-      <WeeklyActivitySummary
-        data={activitySummary}
-        isLoading={activitySummaryLoading}
-        isError={activitySummaryError}
-        onRetry={() => refetchActivitySummary()}
-      />
-
-      {/* WEEKLY OUTCOMES COMMITMENTS */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-medium flex items-center gap-2">
-            <Target className="h-5 w-5" />
-            Weekly Outcome Commitments
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            What you committed to complete this week
-          </p>
-        </CardHeader>
-        <CardContent>
-          <WeeklyOutcomesSummary
-            data={outcomesSummary}
-            isLoading={outcomesSummaryLoading}
-            isError={outcomesSummaryError}
-            onRetry={() => refetchOutcomesSummary()}
+          {/* WEEKLY ACTIVITY EXECUTION (Leading Indicators) */}
+          <WeeklyActivitySummary
+            data={activitySummary}
+            isLoading={activitySummaryLoading}
+            isError={activitySummaryError}
+            onRetry={() => refetchActivitySummary()}
           />
-        </CardContent>
-      </Card>
 
-      {/* WEEKLY TREND SECTION */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle className="text-lg font-medium flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Weekly Trend
-            </CardTitle>
-            <div className="flex items-center gap-2 flex-wrap">
-              <WeekRangePicker
-                rangeOption={weekRangeOption}
-                onRangeOptionChange={setWeekRangeOption}
-                customFromWeek={customFromWeek}
-                customToWeek={customToWeek}
-                onCustomFromWeekChange={setCustomFromWeek}
-                onCustomToWeekChange={setCustomToWeek}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => refetchWeeklySummary()}
-                disabled={weeklySummaryLoading}
-              >
-                <RefreshCw className={`h-4 w-4 mr-1 ${weeklySummaryLoading ? "animate-spin" : ""}`} />
-                Refresh
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  if (weeklySummary?.items) {
-                    exportWeeklySummaryToCSV(weeklySummary.items, year);
-                    toast({
-                      title: "Export Complete",
-                      description: "Weekly summary exported to CSV",
-                    });
-                  }
-                }}
-                disabled={!weeklySummary?.items || weeklySummary.items.length === 0}
-              >
-                <Download className="h-4 w-4 mr-1" />
-                Export CSV
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {weeklySummaryLoading ? (
-            <div className="space-y-4">
-              <Skeleton className="h-[300px] w-full" />
-              <Skeleton className="h-[200px] w-full" />
-            </div>
-          ) : !weeklySummary || !weeklySummary.items || weeklySummary.items.length === 0 ? (
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>No Weekly Data Available</AlertTitle>
-              <AlertDescription>
-                {!plan || (plan.weeklyRevenueTarget ?? 0) === 0 
-                  ? "Set up your sales plan through onboarding to see weekly trends."
-                  : "No data found for the selected week range. Try adjusting the range."}
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <>
-              {/* Trend Chart */}
-              <SalesTrendChart items={weeklySummary.items} />
-
-              {/* Weekly Summary Table */}
-              <WeeklySummaryTable items={weeklySummary.items} />
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* SALES PLANNING */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg font-medium flex items-center gap-2">
-            <Target className="h-5 w-5" />
-            Weekly Sales Plan
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <Form {...planForm}>
-            <form onSubmit={planForm.handleSubmit(onSavePlan)} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
-                  control={planForm.control}
-                  name="weeklyRevenueTarget"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Weekly Revenue Target (₹)</FormLabel>
-                      <FormControl>
-                        <Input type="number" min="0" placeholder="e.g., 500000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={planForm.control}
-                  name="targetDeals"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Target Deals</FormLabel>
-                      <FormControl>
-                        <Input type="number" min="0" placeholder="e.g., 10" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={planForm.control}
-                  name="pipelineCoverage"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Pipeline Coverage (x)</FormLabel>
-                      <FormControl>
-                        <Input type="number" min="0" step="0.1" placeholder="e.g., 3" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <Button type="submit" disabled={planForm.formState.isSubmitting}>
-                {planForm.formState.isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Save Plan
-              </Button>
-            </form>
-          </Form>
-
-          {plan && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
-              <div className="p-4 rounded-lg bg-muted/50">
-                <p className="text-sm text-muted-foreground">Current Weekly Target</p>
-                <p className="text-2xl font-bold mt-1">
-                  {formatCurrency(plan.weeklyRevenueTarget ?? 0)}
-                </p>
-              </div>
-              <div className="p-4 rounded-lg bg-muted/50">
-                <p className="text-sm text-muted-foreground">Target Deals</p>
-                <p className="text-2xl font-bold mt-1">
-                  {plan.targetDeals ?? 0}
-                </p>
-              </div>
-              <div className="p-4 rounded-lg bg-muted/50">
-                <p className="text-sm text-muted-foreground">Pipeline Coverage</p>
-                <p className="text-2xl font-bold mt-1">
-                  {plan.pipelineCoverage ?? 0}x
-                </p>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* SALES TRACKING */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg font-medium flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Deals & Sales Tracker
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* New deal form */}
-          <Form {...dealForm}>
-            <form onSubmit={dealForm.handleSubmit(onCreateDeal)}>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <FormField
-                  control={dealForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input placeholder="Deal name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={dealForm.control}
-                  name="stage"
-                  render={({ field }) => (
-                    <FormItem>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select stage" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {stages.map((stage) => (
-                            <SelectItem key={stage} value={stage}>
-                              {stage}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={dealForm.control}
-                  name="value"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input type="number" min="0" placeholder="Value" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={dealForm.control}
-                  name="expectedCloseDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <Button type="submit" className="mt-4" disabled={dealForm.formState.isSubmitting}>
-                {dealForm.formState.isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Add Deal
-              </Button>
-            </form>
-          </Form>
-
-          {/* Deals table */}
-          {deals.length === 0 ? (
-            <div className="py-6 text-center">
-              <div className="rounded-full bg-primary/10 p-3 w-12 h-12 mx-auto mb-3 flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-primary" />
-              </div>
-              <h4 className="font-medium mb-1">Track Your Pipeline</h4>
-              <p className="text-sm text-muted-foreground mb-4">
-                Add deals above to monitor your sales pipeline and forecast revenue.
+          {/* WEEKLY OUTCOMES COMMITMENTS */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-medium flex items-center gap-2">
+                <Target className="h-5 w-5" />
+                Weekly Outcome Commitments
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                What you committed to complete this week
               </p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Deal</TableHead>
-                  <TableHead>Stage</TableHead>
-                  <TableHead>Value</TableHead>
-                  <TableHead>Expected Close</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {deals.map((deal) => (
-                  <TableRow key={deal.id}>
-                    <TableCell className="font-medium">{deal.name}</TableCell>
-                    <TableCell>{deal.stage}</TableCell>
-                    <TableCell>{formatCurrency(deal.value ?? 0)}</TableCell>
-                    <TableCell>{formatDate(deal.expectedCloseDate)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+            </CardHeader>
+            <CardContent>
+              <WeeklyOutcomesSummary
+                data={outcomesSummary}
+                isLoading={outcomesSummaryLoading}
+                isError={outcomesSummaryError}
+                onRetry={() => refetchOutcomesSummary()}
+              />
+            </CardContent>
+          </Card>
+
+          {/* WEEKLY TREND SECTION */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <CardTitle className="text-lg font-medium flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Weekly Trend
+                </CardTitle>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <WeekRangePicker
+                    rangeOption={weekRangeOption}
+                    onRangeOptionChange={setWeekRangeOption}
+                    customFromWeek={customFromWeek}
+                    customToWeek={customToWeek}
+                    onCustomFromWeekChange={setCustomFromWeek}
+                    onCustomToWeekChange={setCustomToWeek}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetchWeeklySummary()}
+                    disabled={weeklySummaryLoading}
+                  >
+                    <RefreshCw
+                      className={`h-4 w-4 mr-1 ${weeklySummaryLoading ? "animate-spin" : ""}`}
+                    />
+                    Refresh
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (weeklySummary?.items) {
+                        exportWeeklySummaryToCSV(weeklySummary.items, year);
+                        toast({
+                          title: "Export Complete",
+                          description: "Weekly summary exported to CSV",
+                        });
+                      }
+                    }}
+                    disabled={
+                      !weeklySummary?.items || weeklySummary.items.length === 0
+                    }
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    Export CSV
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {weeklySummaryLoading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-[300px] w-full" />
+                  <Skeleton className="h-[200px] w-full" />
+                </div>
+              ) : !weeklySummary ||
+                !weeklySummary.items ||
+                weeklySummary.items.length === 0 ? (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>No Weekly Data Available</AlertTitle>
+                  <AlertDescription>
+                    {!plan || (plan.weeklyRevenueTarget ?? 0) === 0
+                      ? "Set up your sales plan through onboarding to see weekly trends."
+                      : "No data found for the selected week range. Try adjusting the range."}
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <>
+                  {/* Trend Chart */}
+                  <SalesTrendChart items={weeklySummary.items} />
+
+                  {/* Weekly Summary Table */}
+                  <WeeklySummaryTable items={weeklySummary.items} />
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* SALES PLANNING */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-medium flex items-center gap-2">
+                <Target className="h-5 w-5" />
+                Weekly Sales Plan
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Form {...planForm}>
+                <form
+                  onSubmit={planForm.handleSubmit(onSavePlan)}
+                  className="space-y-4"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField
+                      control={planForm.control}
+                      name="weeklyRevenueTarget"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Weekly Revenue Target (₹)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              placeholder="e.g., 500000"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={planForm.control}
+                      name="targetDeals"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Target Deals</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              placeholder="e.g., 10"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={planForm.control}
+                      name="pipelineCoverage"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Pipeline Coverage (x)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              placeholder="e.g., 3"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={planForm.formState.isSubmitting}
+                  >
+                    {planForm.formState.isSubmitting && (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    )}
+                    Save Plan
+                  </Button>
+                </form>
+              </Form>
+
+              {plan && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <p className="text-sm text-muted-foreground">
+                      Current Weekly Target
+                    </p>
+                    <p className="text-2xl font-bold mt-1">
+                      {formatCurrency(plan.weeklyRevenueTarget ?? 0)}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <p className="text-sm text-muted-foreground">
+                      Target Deals
+                    </p>
+                    <p className="text-2xl font-bold mt-1">
+                      {plan.targetDeals ?? 0}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <p className="text-sm text-muted-foreground">
+                      Pipeline Coverage
+                    </p>
+                    <p className="text-2xl font-bold mt-1">
+                      {plan.pipelineCoverage ?? 0}x
+                    </p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* SALES TRACKING */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-medium flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Deals & Sales Tracker
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* New deal form */}
+              <Form {...dealForm}>
+                <form onSubmit={dealForm.handleSubmit(onCreateDeal)}>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <FormField
+                      control={dealForm.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <Input placeholder="Deal name" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={dealForm.control}
+                      name="stage"
+                      render={({ field }) => (
+                        <FormItem>
+                          <Select
+                            value={field.value}
+                            onValueChange={field.onChange}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select stage" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {stages.map((stage) => (
+                                <SelectItem key={stage} value={stage}>
+                                  {stage}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={dealForm.control}
+                      name="value"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              placeholder="Value"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={dealForm.control}
+                      name="expectedCloseDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="mt-4"
+                    disabled={dealForm.formState.isSubmitting}
+                  >
+                    {dealForm.formState.isSubmitting && (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    )}
+                    Add Deal
+                  </Button>
+                </form>
+              </Form>
+
+              {/* Deals table */}
+              {deals.length === 0 ? (
+                <div className="py-6 text-center">
+                  <div className="rounded-full bg-primary/10 p-3 w-12 h-12 mx-auto mb-3 flex items-center justify-center">
+                    <DollarSign className="h-6 w-6 text-primary" />
+                  </div>
+                  <h4 className="font-medium mb-1">Track Your Pipeline</h4>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Add deals above to monitor your sales pipeline and forecast
+                    revenue.
+                  </p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Deal</TableHead>
+                      <TableHead>Stage</TableHead>
+                      <TableHead>Value</TableHead>
+                      <TableHead>Expected Close</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {deals.map((deal) => (
+                      <TableRow key={deal.id}>
+                        <TableCell className="font-medium">
+                          {deal.name}
+                        </TableCell>
+                        <TableCell>{deal.stage}</TableCell>
+                        <TableCell>{formatCurrency(deal.value ?? 0)}</TableCell>
+                        <TableCell>
+                          {formatDate(deal.expectedCloseDate)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="prospects" className="flex flex-col gap-4">
