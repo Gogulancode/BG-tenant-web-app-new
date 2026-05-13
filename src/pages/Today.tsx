@@ -43,6 +43,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  CoachActionLane,
+  CoachResultCard,
+  InteractiveCoachHero,
+} from "@/components/InteractiveCoach";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
@@ -50,7 +55,10 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { invalidateSalesOperatingData } from "@/lib/queryInvalidation";
+import {
+  invalidateOperatingSystem,
+  invalidateSalesOperatingData,
+} from "@/lib/queryInvalidation";
 
 interface Outcome {
   id: string;
@@ -148,6 +156,11 @@ function SalesLogCard({
   );
   const [orders, setOrders] = useState("");
   const [notes, setNotes] = useState("");
+  const [salesResult, setSalesResult] = useState<{
+    achieved: number;
+    gap: number;
+    percent: number;
+  } | null>(null);
 
   const saveSales = useMutation({
     mutationFn: () =>
@@ -159,8 +172,17 @@ function SalesLogCard({
         notes: notes || undefined,
       }),
     onSuccess: () => {
+      const achievedValue = Number(achieved || 0);
+      const gap = Math.max(0, cockpit.sales.weeklyTarget - achievedValue);
+      const percentValue = cockpit.sales.weeklyTarget
+        ? (achievedValue / cockpit.sales.weeklyTarget) * 100
+        : 0;
+      setSalesResult({ achieved: achievedValue, gap, percent: percentValue });
       invalidateSalesOperatingData(queryClient);
-      toast({ title: "Weekly sales saved" });
+      toast({
+        title: "Weekly sales saved",
+        description: "Dashboard and coach are refreshing.",
+      });
     },
     onError: (error: Error) => {
       toast({
@@ -232,6 +254,33 @@ function SalesLogCard({
             "Save Weekly Sales"
           )}
         </Button>
+        {salesResult ? (
+          <CoachResultCard
+            actions={[
+              { label: "Add follow-up", to: "/sales", variant: "default" },
+              { label: "Add activity", to: "/activities" },
+            ]}
+            metrics={[
+              {
+                label: "Saved",
+                value: formatCurrencyINR(salesResult.achieved),
+              },
+              {
+                label: "Remaining gap",
+                value: formatCurrencyINR(salesResult.gap),
+              },
+            ]}
+            title={
+              salesResult.gap > 0
+                ? "Sales saved. Now move the input."
+                : "Sales saved. Weekly target is cleared."
+            }
+          >
+            {salesResult.gap > 0
+              ? `${percent(salesResult.percent)} of this week's target is logged. The useful next move is a follow-up or activity that can create the remaining ${formatCurrencyINR(salesResult.gap)}.`
+              : "Good. Keep the week healthy by creating the next pipeline action before momentum fades."}
+          </CoachResultCard>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -246,6 +295,7 @@ function ActivityExecutionCard({
 }) {
   const { toast } = useToast();
   const createActivity = useCreateActivity();
+  const [activityResult, setActivityResult] = useState<string | null>(null);
 
   const handleComplete = (activity: {
     category?: string;
@@ -270,7 +320,15 @@ function ActivityExecutionCard({
         status: "Completed",
       },
       {
-        onSuccess: () => toast({ title: "Activity completed" }),
+        onSuccess: () => {
+          setActivityResult(
+            activity.category || "Business development activity",
+          );
+          toast({
+            title: "Activity completed",
+            description: "Your execution rhythm is refreshing.",
+          });
+        },
         onError: (error: Error) =>
           toast({
             title: "Unable to complete activity",
@@ -345,6 +403,25 @@ function ActivityExecutionCard({
             </Link>
           </div>
         )}
+        {activityResult ? (
+          <CoachResultCard
+            actions={[
+              { label: "Open CRM", to: "/sales", variant: "default" },
+              { label: "Review Today", to: "/today" },
+            ]}
+            metrics={[
+              {
+                label: "Weekly rhythm",
+                value: `${cockpit.activities.actualThisWeek + 1}/${cockpit.activities.targetThisWeek}`,
+              },
+              { label: "Action", value: activityResult },
+            ]}
+            title="Activity saved. The week moved forward."
+          >
+            Connect this action to a prospect or outcome so the system can keep
+            guiding the next useful step.
+          </CoachResultCard>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -729,7 +806,7 @@ export default function Today() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["outcomes"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      invalidateOperatingSystem(queryClient);
       toast({ title: "Outcome updated" });
     },
     onError: () => {
@@ -744,7 +821,7 @@ export default function Today() {
     try {
       await logMetric(metricId, value);
       queryClient.invalidateQueries({ queryKey: ["metrics"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      invalidateOperatingSystem(queryClient);
       toast({ title: "Metric logged" });
     } catch (error) {
       toast({
@@ -798,6 +875,50 @@ export default function Today() {
 
       {cockpit ? (
         <>
+          <InteractiveCoachHero
+            actionLabel={
+              cockpit.activities.dueToday.length > 0
+                ? "Do first action"
+                : cockpit.crm.activeFollowUps > 0
+                  ? "Move CRM"
+                  : "Plan the week"
+            }
+            icon={Sparkles}
+            metricLabel="Momentum"
+            metricValue={`${Math.round(cockpit.insights.momentumScore)}%`}
+            progress={cockpit.insights.momentumScore}
+            steps={[
+              {
+                label: "Pick one input",
+                helper: "Activity, outcome, CRM touch, or metric.",
+              },
+              {
+                label: "Save proof",
+                helper: "Log the action so the system can react.",
+              },
+              {
+                label: "Move next",
+                helper: "Follow the next card after the save.",
+              },
+            ]}
+            title={
+              cockpit.setup.isComplete
+                ? "Today is about the next useful business action"
+                : "Finish the business foundation first"
+            }
+            to={
+              cockpit.activities.dueToday.length > 0
+                ? "/activities"
+                : cockpit.crm.activeFollowUps > 0
+                  ? "/sales"
+                  : "/onboarding"
+            }
+          >
+            {cockpit.setup.isComplete
+              ? "Use this page like a daily operating room: choose the next action, save it, then let the coach show what changed and what to do next."
+              : "Complete setup so the app can guide activities, CRM, outcomes, and sales from your own business model."}
+          </InteractiveCoachHero>
+
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Card>
               <CardContent className="p-4">
@@ -837,6 +958,33 @@ export default function Today() {
               </CardContent>
             </Card>
           </div>
+
+          <CoachActionLane
+            title="Do these in order"
+            items={[
+              {
+                label: "Complete an activity",
+                value: `${cockpit.activities.actualThisWeek}/${cockpit.activities.targetThisWeek}`,
+                helper: "Actions create momentum before sales shows up.",
+                icon: Activity,
+                to: "/activities",
+              },
+              {
+                label: "Move a relationship",
+                value: cockpit.crm.activeFollowUps,
+                helper: "Follow-ups keep the pipeline alive.",
+                icon: Users,
+                to: "/sales",
+              },
+              {
+                label: "Log a result",
+                value: percent(cockpit.sales.weeklyAchievementPercent),
+                helper: "Revenue is the scorecard, not the only work.",
+                icon: DollarSign,
+                to: "/sales",
+              },
+            ]}
+          />
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
             <div className="space-y-6 xl:col-span-2">

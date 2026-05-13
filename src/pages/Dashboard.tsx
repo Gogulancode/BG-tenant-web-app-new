@@ -28,7 +28,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { FirstWeekChecklist } from "@/components/FirstWeekChecklist";
 import { BusinessSetupCard } from "@/components/BusinessSetupCard";
-import { GuidanceCoachPanel } from "@/components/GuidanceCoachPanel";
+import {
+  CoachActionLane,
+  InteractiveCoachHero,
+} from "@/components/InteractiveCoach";
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -48,6 +51,13 @@ function formatLabel(value?: string | null) {
 
 function pct(value?: number) {
   return formatPercent(Math.max(0, Math.min(100, value || 0)));
+}
+
+function normalizeGuidanceRoute(route?: string) {
+  if (!route) return "/dashboard";
+  if (route === "/setup") return "/onboarding";
+  if (route === "/sales/prospects") return "/sales";
+  return route;
 }
 
 function FocusItem({
@@ -92,20 +102,17 @@ function ProgressRow({
         <span className="font-medium text-foreground">{label}</span>
         <span className="text-muted-foreground">{pct(value)}</span>
       </div>
-      <Progress value={Math.max(0, Math.min(100, value || 0))} className="h-2" />
+      <Progress
+        value={Math.max(0, Math.min(100, value || 0))}
+        className="h-2"
+      />
       <p className="text-xs text-muted-foreground">{helper}</p>
     </div>
   );
 }
 
 const Dashboard = () => {
-  const {
-    data,
-    isLoading,
-    isError,
-    isFetching,
-    refetch,
-  } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["dashboard-summary"],
     queryFn: getDashboardSummary,
     staleTime: 60 * 1000,
@@ -115,13 +122,18 @@ const Dashboard = () => {
   const greeting = getGreeting();
   const userName = data?.userName || "there";
   const cockpit = data?.cockpit;
+  const primaryGuidance = guidanceQuery.data?.cards[0];
+  const healthScore =
+    guidanceQuery.data?.summary.healthScore ??
+    cockpit?.insights.momentumScore ??
+    0;
 
   const hasData = Boolean(
     cockpit &&
-      (cockpit.insights.momentumScore > 0 ||
-        cockpit.sales.weeklyTarget > 0 ||
-        cockpit.activities.targetThisWeek > 0 ||
-        cockpit.crm.totalProspects > 0),
+    (cockpit.insights.momentumScore > 0 ||
+      cockpit.sales.weeklyTarget > 0 ||
+      cockpit.activities.targetThisWeek > 0 ||
+      cockpit.crm.totalProspects > 0),
   );
 
   const focusItems = useMemo(() => {
@@ -165,7 +177,8 @@ const Dashboard = () => {
     if (items.length === 0) {
       items.push({
         title: "Review today's plan",
-        description: "Check Today for metric logging, outcomes, and execution notes.",
+        description:
+          "Check Today for metric logging, outcomes, and execution notes.",
         action: "Go to Today",
         to: "/today",
       });
@@ -224,7 +237,9 @@ const Dashboard = () => {
             disabled={isFetching}
             className="gap-2"
           >
-            <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+            />
             Refresh
           </Button>
           <Link to="/today">
@@ -239,13 +254,38 @@ const Dashboard = () => {
       {!hasData && <FirstWeekChecklist />}
       {!cockpit.setup.isComplete && <BusinessSetupCard />}
 
-      <GuidanceCoachPanel
-        guidance={guidanceQuery.data}
-        isLoading={guidanceQuery.isLoading}
-        isError={guidanceQuery.isError}
-        isFetching={guidanceQuery.isFetching}
-        onRefresh={() => guidanceQuery.refetch()}
-      />
+      <InteractiveCoachHero
+        actionLabel={primaryGuidance?.actionLabel ?? "Open Today"}
+        icon={Flame}
+        metricLabel={
+          guidanceQuery.data?.summary.journeyStage ?? "Business health"
+        }
+        metricValue={Math.round(healthScore)}
+        progress={healthScore}
+        steps={[
+          {
+            label: "Do now",
+            helper: primaryGuidance?.title ?? "Choose one business action.",
+          },
+          {
+            label: "Track it",
+            helper: "Save the action so web and mobile update together.",
+          },
+          {
+            label: "Follow through",
+            helper:
+              primaryGuidance?.afterActionMessage ??
+              "Review the next coach card.",
+          },
+        ]}
+        title={
+          guidanceQuery.data?.summary.title ?? "Your next best business move"
+        }
+        to={normalizeGuidanceRoute(primaryGuidance?.actionRoute) || "/today"}
+      >
+        {guidanceQuery.data?.summary.message ??
+          "Use Today, CRM, and Activities as the inputs. Sales becomes the result of that rhythm."}
+      </InteractiveCoachHero>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <KpiCard
@@ -276,6 +316,33 @@ const Dashboard = () => {
           icon={Users}
         />
       </div>
+
+      <CoachActionLane
+        title="Operating path"
+        items={[
+          {
+            label: "Act today",
+            value: `${cockpit.activities.actualThisWeek}/${cockpit.activities.targetThisWeek}`,
+            helper: "Complete the behavior that creates the next sales result.",
+            icon: Activity,
+            to: "/today",
+          },
+          {
+            label: "Move pipeline",
+            value: cockpit.crm.activeFollowUps,
+            helper: "Warm and hot prospects need visible next touches.",
+            icon: Users,
+            to: "/sales",
+          },
+          {
+            label: "Log outcome",
+            value: pct(cockpit.sales.weeklyAchievementPercent),
+            helper: "Keep the weekly target honest across web and mobile.",
+            icon: DollarSign,
+            to: "/sales",
+          },
+        ]}
+      />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2">
@@ -371,7 +438,9 @@ const Dashboard = () => {
                     className="flex items-center justify-between gap-3 rounded-md bg-muted/50 p-3 text-sm"
                   >
                     <div className="min-w-0">
-                      <p className="font-medium text-foreground">{followUp.prospectName}</p>
+                      <p className="font-medium text-foreground">
+                        {followUp.prospectName}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {formatLabel(followUp.status)}
                       </p>
@@ -383,7 +452,8 @@ const Dashboard = () => {
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No active follow-ups yet. Add prospects in Sales to build your pipeline.
+                  No active follow-ups yet. Add prospects in Sales to build your
+                  pipeline.
                 </p>
               )}
             </div>
@@ -402,20 +472,27 @@ const Dashboard = () => {
               cockpit.activities.weeklyItems.map((item) => (
                 <div key={item.category} className="rounded-md border p-4">
                   <div className="flex items-center justify-between gap-3 text-sm">
-                    <p className="font-medium text-foreground">{item.category}</p>
+                    <p className="font-medium text-foreground">
+                      {item.category}
+                    </p>
                     <p className="text-muted-foreground">
                       {item.actual}/{item.target}
                     </p>
                   </div>
                   <Progress
-                    value={item.target > 0 ? Math.min(100, (item.actual / item.target) * 100) : 0}
+                    value={
+                      item.target > 0
+                        ? Math.min(100, (item.actual / item.target) * 100)
+                        : 0
+                    }
                     className="mt-3 h-2"
                   />
                 </div>
               ))
             ) : (
               <p className="text-sm text-muted-foreground">
-                Configure weekly activities during onboarding to see your execution plan.
+                Configure weekly activities during onboarding to see your
+                execution plan.
               </p>
             )}
           </CardContent>
@@ -431,7 +508,9 @@ const Dashboard = () => {
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-3">
           <div className="rounded-md border p-4">
-            <p className="text-sm font-medium text-muted-foreground">Current Stage</p>
+            <p className="text-sm font-medium text-muted-foreground">
+              Current Stage
+            </p>
             <p className="mt-2 text-xl font-semibold">
               {cockpit.achievement.currentStage?.name || "Not reached yet"}
             </p>
@@ -440,7 +519,9 @@ const Dashboard = () => {
             </p>
           </div>
           <div className="rounded-md border p-4">
-            <p className="text-sm font-medium text-muted-foreground">Next Stage</p>
+            <p className="text-sm font-medium text-muted-foreground">
+              Next Stage
+            </p>
             <p className="mt-2 text-xl font-semibold">
               {cockpit.achievement.nextStage?.name || "All stages reached"}
             </p>
@@ -451,7 +532,9 @@ const Dashboard = () => {
             </p>
           </div>
           <div className="rounded-md border p-4">
-            <p className="text-sm font-medium text-muted-foreground">Recommended Action</p>
+            <p className="text-sm font-medium text-muted-foreground">
+              Recommended Action
+            </p>
             <p className="mt-2 text-sm text-foreground">
               {cockpit.insights.recommendations[0] ||
                 "Keep sales follow-ups and weekly commitments moving today."}

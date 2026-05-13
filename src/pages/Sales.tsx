@@ -37,6 +37,11 @@ import {
   type WeekRangeOption,
 } from "@/components/sales";
 import { WeeklyActivitySummary } from "@/components/activities";
+import {
+  CoachActionLane,
+  CoachResultCard,
+  InteractiveCoachHero,
+} from "@/components/InteractiveCoach";
 import { WeeklyOutcomesSummary } from "@/components/outcomes";
 import {
   Card,
@@ -104,6 +109,7 @@ import {
   ChevronLeft,
   ChevronRight,
   History,
+  Sparkles,
 } from "lucide-react";
 
 type SalesPlan = {
@@ -191,6 +197,13 @@ function LogWeeklySalesSection() {
   const [weekLoading, setWeekLoading] = useState(false); // Separate loading for week navigation
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<"log" | "history">("log");
+  const [salesResult, setSalesResult] = useState<{
+    achieved: number;
+    gap: number;
+    orders?: number;
+    percent: number;
+    target: number;
+  } | null>(null);
 
   const form = useForm<WeeklySalesFormData>({
     resolver: zodResolver(weeklySalesSchema),
@@ -275,16 +288,23 @@ function LogWeeklySalesSection() {
       ]);
       setWeeklyEntry(updatedEntry);
       setAllEntries(entries.sort((a, b) => b.week - a.week));
+      setSalesResult({
+        achieved: updatedEntry.achieved,
+        gap: Math.max(0, updatedEntry.target - updatedEntry.achieved),
+        orders: updatedEntry.orders,
+        percent: updatedEntry.achievementPercent,
+        target: updatedEntry.target,
+      });
       invalidateSalesOperatingData(queryClient);
 
       toast({
         title: `Week ${selectedWeek} Sales ${weeklyEntry?.achieved ? "Updated" : "Logged"}!`,
         description:
           updatedEntry.status === "exceeded"
-            ? "🎉 Target exceeded!"
+            ? "Target exceeded."
             : updatedEntry.status === "achieved"
-              ? "✅ On track!"
-              : `📊 ${updatedEntry.achievementPercent.toFixed(0)}% achieved.`,
+              ? "On track."
+              : `${updatedEntry.achievementPercent.toFixed(0)}% achieved.`,
       });
     } catch (error) {
       toast({
@@ -453,7 +473,7 @@ function LogWeeklySalesSection() {
                     <p className="text-xl font-bold">
                       {weeklyEntry.achieved > 0
                         ? formatCurrencyINR(weeklyEntry.achieved)
-                        : "—"}
+                        : "-"}
                     </p>
                   </div>
                 </div>
@@ -486,7 +506,7 @@ function LogWeeklySalesSection() {
                     name="achieved"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Sales Revenue (₹)</FormLabel>
+                        <FormLabel>Sales Revenue (INR)</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -589,6 +609,34 @@ function LogWeeklySalesSection() {
                 </form>
               </Form>
             )}
+
+            {salesResult ? (
+              <CoachResultCard
+                actions={[
+                  { label: "Move CRM", to: "/sales", variant: "default" },
+                  { label: "Open Today", to: "/today" },
+                ]}
+                metrics={[
+                  {
+                    label: "Logged",
+                    value: formatCurrencyINR(salesResult.achieved),
+                  },
+                  {
+                    label: "Remaining",
+                    value: formatCurrencyINR(salesResult.gap),
+                  },
+                ]}
+                title={
+                  salesResult.gap > 0
+                    ? "Sales saved. Now choose the input that closes the gap."
+                    : "Sales saved. The week is on track."
+                }
+              >
+                {salesResult.gap > 0
+                  ? `${salesResult.percent.toFixed(0)}% of the weekly target is done. The next useful move is to update one warm prospect, complete one activity, or add one follow-up that can create the remaining ${formatCurrencyINR(salesResult.gap)}.`
+                  : "Keep the rhythm healthy by logging the activity or CRM movement that created this result."}
+              </CoachResultCard>
+            ) : null}
           </TabsContent>
 
           <TabsContent value="history">
@@ -853,6 +901,7 @@ export default function Sales() {
   const [deals, setDeals] = useState<SalesDeal[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Weekly Trend state
   const [weekRangeOption, setWeekRangeOption] =
@@ -981,6 +1030,7 @@ export default function Sales() {
       };
       const updated = await updateSalesPlanning(payload);
       setPlan(updated);
+      invalidateSalesOperatingData(queryClient);
       toast({
         title: "Success",
         description: "Sales plan updated successfully",
@@ -1009,6 +1059,7 @@ export default function Sales() {
       // Refresh deals
       const tracker = await getSalesTracker();
       setDeals(Array.isArray(tracker) ? tracker : []);
+      invalidateSalesOperatingData(queryClient);
 
       toast({
         title: "Success",
@@ -1041,6 +1092,15 @@ export default function Sales() {
     });
   };
 
+  const weeklyTarget = plan?.weeklyRevenueTarget ?? 0;
+  const pipelineValue = deals.reduce(
+    (total, deal) => total + (deal.value ?? 0),
+    0,
+  );
+  const qualifiedDeals = deals.filter((deal) =>
+    ["Qualified", "Proposal Sent", "Negotiation"].includes(deal.stage),
+  ).length;
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -1066,6 +1126,64 @@ export default function Sales() {
       <PageHeader
         title="Sales CRM & Revenue Operations"
         description="Operate the monthly pipeline, follow-ups, sales targets, and weekly revenue rhythm from one place."
+      />
+
+      <InteractiveCoachHero
+        actionLabel={weeklyTarget > 0 ? "Log weekly sales" : "Set sales plan"}
+        icon={Sparkles}
+        metricLabel={weeklyTarget > 0 ? "Weekly target" : "Planning"}
+        metricValue={
+          weeklyTarget > 0 ? formatCurrencyINR(weeklyTarget) : "Start"
+        }
+        progress={
+          weeklyTarget > 0
+            ? Math.min(100, (pipelineValue / Math.max(weeklyTarget, 1)) * 100)
+            : 0
+        }
+        steps={[
+          {
+            label: "Create demand",
+            helper: "Add prospects and follow-ups before revenue appears.",
+          },
+          {
+            label: "Track the week",
+            helper: "Log sales so Today and Dashboard refresh.",
+          },
+          {
+            label: "Close the gap",
+            helper: "Use the next CRM move to create the next result.",
+          },
+        ]}
+        title="Sales is the scorecard. CRM movement is the work."
+        to="/sales"
+      >
+        Keep the page focused on the next relationship, next activity, and next
+        logged result. The same API data feeds tenant web and mobile.
+      </InteractiveCoachHero>
+
+      <CoachActionLane
+        title="Revenue operating loop"
+        items={[
+          {
+            label: "Pipeline value",
+            value: formatCurrencyINR(pipelineValue),
+            helper: "Open deals that can support this week's target.",
+            icon: DollarSign,
+          },
+          {
+            label: "Qualified moves",
+            value: qualifiedDeals,
+            helper: "Deals past lead stage need visible next action.",
+            icon: TrendingUp,
+          },
+          {
+            label: "Weekly target",
+            value:
+              weeklyTarget > 0 ? formatCurrencyINR(weeklyTarget) : "Not set",
+            helper: "Set this once, then keep weekly logging current.",
+            icon: Target,
+          },
+        ]}
       />
 
       <Tabs defaultValue="prospects" className="flex flex-col gap-6">
@@ -1210,7 +1328,7 @@ export default function Sales() {
                       name="weeklyRevenueTarget"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Weekly Revenue Target (₹)</FormLabel>
+                          <FormLabel>Weekly Revenue Target (INR)</FormLabel>
                           <FormControl>
                             <Input
                               type="number"

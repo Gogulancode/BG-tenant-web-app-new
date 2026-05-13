@@ -27,7 +27,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +42,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import {
+  CoachActionLane,
+  CoachResultCard,
+  InteractiveCoachHero,
+} from "@/components/InteractiveCoach";
 import {
   Form,
   FormControl,
@@ -71,9 +82,19 @@ import {
 } from "@/hooks/useSales";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrencyINR } from "@/lib/utils";
-import type { SalesProspect, SalesProspectReason, SalesProspectStatus } from "@/lib/api";
+import type {
+  SalesProspect,
+  SalesProspectReason,
+  SalesProspectStatus,
+} from "@/lib/api";
 
-const statuses: SalesProspectStatus[] = ["COLD", "WARM", "HOT", "CONVERTED", "REJECTED"];
+const statuses: SalesProspectStatus[] = [
+  "COLD",
+  "WARM",
+  "HOT",
+  "CONVERTED",
+  "REJECTED",
+];
 const reasons: SalesProspectReason[] = [
   "BUDGET",
   "AUTHORITY",
@@ -107,17 +128,31 @@ const reasonLabels: Record<SalesProspectReason, string> = {
 const formSchema = z.object({
   month: z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])$/, "Select a valid month"),
   firstCallAt: z.string().optional(),
-  prospectName: z.string().min(2, "Prospect name must be at least 2 characters"),
+  prospectName: z
+    .string()
+    .min(2, "Prospect name must be at least 2 characters"),
   mobileNumber: z.string().optional(),
   offeringType: z.string().optional(),
   proposalValue: z.preprocess(
-    (value) => (value === "" || value === undefined || value === null ? undefined : Number(value)),
+    (value) =>
+      value === "" || value === undefined || value === null
+        ? undefined
+        : Number(value),
     z.number().min(0, "Proposal value must be 0 or greater").optional(),
   ),
   referralSource: z.string().optional(),
   lastFollowUpAt: z.string().optional(),
   status: z.enum(["COLD", "WARM", "HOT", "CONVERTED", "REJECTED"]),
-  reason: z.enum(["NONE", "BUDGET", "AUTHORITY", "NEED", "TIMELINE", "AVAILABILITY", "CLOSURE", "OTHER"]),
+  reason: z.enum([
+    "NONE",
+    "BUDGET",
+    "AUTHORITY",
+    "NEED",
+    "TIMELINE",
+    "AVAILABILITY",
+    "CLOSURE",
+    "OTHER",
+  ]),
   remarks: z.string().optional(),
 });
 
@@ -163,7 +198,9 @@ function cleanText(value?: string) {
   return trimmed ? trimmed : undefined;
 }
 
-function getStatusVariant(status: SalesProspectStatus): "default" | "secondary" | "destructive" | "outline" {
+function getStatusVariant(
+  status: SalesProspectStatus,
+): "default" | "secondary" | "destructive" | "outline" {
   if (status === "CONVERTED") return "default";
   if (status === "REJECTED") return "destructive";
   if (status === "HOT") return "secondary";
@@ -184,7 +221,10 @@ function getFollowUpSignal(prospect: SalesProspect) {
     return { label: "Follow-up overdue", variant: "destructive" as const };
   }
 
-  return { label: `Followed ${formatDate(prospect.lastFollowUpAt)}`, variant: "outline" as const };
+  return {
+    label: `Followed ${formatDate(prospect.lastFollowUpAt)}`,
+    variant: "outline" as const,
+  };
 }
 
 function toPayload(values: FormValues) {
@@ -228,6 +268,11 @@ export function SalesProspectsPanel() {
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<SalesProspect | null>(null);
+  const [saveResult, setSaveResult] = useState<{
+    name: string;
+    status: SalesProspectStatus;
+    value?: number;
+  } | null>(null);
 
   const params = useMemo(
     () => ({
@@ -257,17 +302,26 @@ export function SalesProspectsPanel() {
   const totalPages = prospects.data?.totalPages ?? 1;
   const stats = summary.data;
   const activeFollowUps =
-    stats?.activeFollowUps ?? (stats?.byStatus?.WARM ?? 0) + (stats?.byStatus?.HOT ?? 0);
+    stats?.activeFollowUps ??
+    (stats?.byStatus?.WARM ?? 0) + (stats?.byStatus?.HOT ?? 0);
   const statusCounts = stats?.byStatus ?? {};
   const totalProspects = stats?.totalProspects ?? 0;
-  const conversionRate = totalProspects > 0 ? ((stats?.convertedCount ?? 0) / totalProspects) * 100 : 0;
-  const followUpCoverage = totalProspects > 0 ? (activeFollowUps / totalProspects) * 100 : 0;
+  const conversionRate =
+    totalProspects > 0
+      ? ((stats?.convertedCount ?? 0) / totalProspects) * 100
+      : 0;
+  const followUpCoverage =
+    totalProspects > 0 ? (activeFollowUps / totalProspects) * 100 : 0;
   const visibleNeedsAttention = rows.filter((row) => {
     if (!activeStatuses.has(row.status)) return false;
     const daysSince = getDaysSince(row.lastFollowUpAt);
     return daysSince === null || daysSince > 7;
   }).length;
-  const hasActiveFilters = status !== "ALL" || reason !== "ALL" || search.trim().length > 0 || month !== currentMonth;
+  const hasActiveFilters =
+    status !== "ALL" ||
+    reason !== "ALL" ||
+    search.trim().length > 0 ||
+    month !== currentMonth;
 
   function updateMonth(value: string) {
     setMonth(value);
@@ -303,6 +357,20 @@ export function SalesProspectsPanel() {
     setOpen(true);
   }
 
+  function startCreatePreset(
+    preset: Pick<
+      FormValues,
+      "offeringType" | "proposalValue" | "status" | "lastFollowUpAt" | "remarks"
+    >,
+  ) {
+    setEditing(null);
+    form.reset({
+      ...getDefaultValues(month),
+      ...preset,
+    });
+    setOpen(true);
+  }
+
   function startEdit(prospect: SalesProspect) {
     setEditing(prospect);
     form.reset({
@@ -324,17 +392,26 @@ export function SalesProspectsPanel() {
   async function onSubmit(values: FormValues) {
     try {
       if (editing) {
-        await updateMutation.mutateAsync({ id: editing.id, payload: toPayload(values) });
+        await updateMutation.mutateAsync({
+          id: editing.id,
+          payload: toPayload(values),
+        });
         toast({ title: "Prospect updated" });
       } else {
         await createMutation.mutateAsync(toPayload(values));
         toast({ title: "Prospect added" });
       }
+      setSaveResult({
+        name: values.prospectName.trim(),
+        status: values.status,
+        value: values.proposalValue,
+      });
       setOpen(false);
     } catch (error) {
       toast({
         title: "Unable to save prospect",
-        description: error instanceof Error ? error.message : "Please try again.",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
     }
@@ -347,7 +424,8 @@ export function SalesProspectsPanel() {
     } catch (error) {
       toast({
         title: "Unable to delete prospect",
-        description: error instanceof Error ? error.message : "Please try again.",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
     }
@@ -365,7 +443,8 @@ export function SalesProspectsPanel() {
       } catch (error) {
         toast({
           title: "Unable to update prospect",
-          description: error instanceof Error ? error.message : "Please try again.",
+          description:
+            error instanceof Error ? error.message : "Please try again.",
           variant: "destructive",
         });
       }
@@ -375,10 +454,115 @@ export function SalesProspectsPanel() {
 
   return (
     <div className="flex flex-col gap-4">
+      <InteractiveCoachHero
+        actionLabel={
+          totalProspects > 0 ? "Add next prospect" : "Start pipeline"
+        }
+        icon={Users}
+        metricLabel="Active follow-ups"
+        metricValue={activeFollowUps}
+        onAction={() =>
+          startCreatePreset({
+            lastFollowUpAt: getTodayInput(),
+            offeringType: "Discovery conversation",
+            proposalValue: undefined,
+            remarks: "Next step: first useful follow-up.",
+            status: "WARM",
+          })
+        }
+        progress={followUpCoverage}
+        steps={[
+          {
+            label: "Name the relationship",
+            helper: "Capture who can move the business forward.",
+          },
+          {
+            label: "Set the next touch",
+            helper: "Warm and hot records should never sit still.",
+          },
+          {
+            label: "Update status",
+            helper: "The coach reacts when prospects move.",
+          },
+        ]}
+        title={
+          totalProspects > 0
+            ? "Move the next relationship"
+            : "Build the pipeline base"
+        }
+      >
+        CRM should feel like a next-action board. Add the relationship, mark
+        today's touch, then keep the funnel status honest.
+      </InteractiveCoachHero>
+
+      {saveResult ? (
+        <CoachResultCard
+          actions={[
+            {
+              label: "Add another prospect",
+              onClick: () =>
+                startCreatePreset({
+                  lastFollowUpAt: getTodayInput(),
+                  offeringType: "Discovery conversation",
+                  proposalValue: undefined,
+                  remarks: "Next step: first useful follow-up.",
+                  status: "WARM",
+                }),
+              variant: "default",
+            },
+            { label: "Open Today", to: "/today" },
+          ]}
+          metrics={[
+            { label: "Status", value: statusLabels[saveResult.status] },
+            {
+              label: "Value",
+              value: formatCurrencyINR(saveResult.value ?? 0),
+            },
+          ]}
+          title={`${saveResult.name} saved. Now create movement.`}
+        >
+          Use the quick actions in the table to mark today's follow-up, warm,
+          hot, or won so the dashboard and mobile coach stay current.
+        </CoachResultCard>
+      ) : null}
+
+      <CoachActionLane
+        title="CRM smart starts"
+        items={[
+          {
+            label: "Warm lead",
+            value: statusCounts.WARM ?? 0,
+            helper: "Someone interested enough for a next touch.",
+            icon: Flame,
+          },
+          {
+            label: "Hot deal",
+            value: statusCounts.HOT ?? 0,
+            helper: "Proposal or decision stage opportunity.",
+            icon: CheckCircle2,
+          },
+          {
+            label: "Needs attention",
+            value: visibleNeedsAttention,
+            helper: "Records missing a recent follow-up.",
+            icon: CalendarClock,
+          },
+        ]}
+      />
+
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="grid flex-1 grid-cols-1 gap-2 md:grid-cols-[160px_180px_180px_minmax(220px,1fr)]">
-          <Input type="month" value={month} onChange={(event) => updateMonth(event.target.value)} />
-          <Select value={status} onValueChange={(value) => updateStatus(value as SalesProspectStatus | "ALL")}>
+          <Input
+            type="month"
+            value={month}
+            onChange={(event) => updateMonth(event.target.value)}
+          />
+          <Select
+            value={status}
+            onValueChange={(value) =>
+              updateStatus(value as SalesProspectStatus | "ALL")
+            }
+          >
             <SelectTrigger>
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -391,7 +575,10 @@ export function SalesProspectsPanel() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={reason} onValueChange={(value) => updateReason(value as ReasonFilter)}>
+          <Select
+            value={reason}
+            onValueChange={(value) => updateReason(value as ReasonFilter)}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Reason" />
             </SelectTrigger>
@@ -430,7 +617,11 @@ export function SalesProspectsPanel() {
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <SummaryCard title="Total prospects" value={stats?.totalProspects ?? 0} loading={summary.isLoading} />
+        <SummaryCard
+          title="Total prospects"
+          value={stats?.totalProspects ?? 0}
+          loading={summary.isLoading}
+        />
         <SummaryCard
           title="Pipeline value"
           value={formatCurrencyINR(stats?.pipelineValue ?? 0)}
@@ -442,15 +633,27 @@ export function SalesProspectsPanel() {
           caption={`${stats?.convertedCount ?? 0} converted`}
           loading={summary.isLoading}
         />
-        <SummaryCard title="Active follow-ups" value={activeFollowUps} loading={summary.isLoading} />
-        <SummaryCard title="Rejected" value={stats?.rejectedCount ?? 0} loading={summary.isLoading} />
+        <SummaryCard
+          title="Active follow-ups"
+          value={activeFollowUps}
+          loading={summary.isLoading}
+        />
+        <SummaryCard
+          title="Rejected"
+          value={stats?.rejectedCount ?? 0}
+          loading={summary.isLoading}
+        />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-[1.5fr_1fr]">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base font-medium">Funnel board</CardTitle>
-            <CardDescription>Click a status to filter this month's pipeline.</CardDescription>
+            <CardTitle className="text-base font-medium">
+              Funnel board
+            </CardTitle>
+            <CardDescription>
+              Click a status to filter this month's pipeline.
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2 sm:grid-cols-5">
             {statuses.map((item) => (
@@ -461,8 +664,12 @@ export function SalesProspectsPanel() {
                 className="h-auto flex-col items-start gap-1 px-3 py-3"
                 onClick={() => updateStatus(status === item ? "ALL" : item)}
               >
-                <span className="text-xs font-medium">{statusLabels[item]}</span>
-                <span className="text-xl font-semibold">{statusCounts[item] ?? 0}</span>
+                <span className="text-xs font-medium">
+                  {statusLabels[item]}
+                </span>
+                <span className="text-xl font-semibold">
+                  {statusCounts[item] ?? 0}
+                </span>
               </Button>
             ))}
           </CardContent>
@@ -471,12 +678,23 @@ export function SalesProspectsPanel() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-medium">CRM health</CardTitle>
-            <CardDescription>Conversion and follow-up signals for the selected month.</CardDescription>
+            <CardDescription>
+              Conversion and follow-up signals for the selected month.
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            <HealthMetric label="Conversion rate" value={formatPercentValue(conversionRate)} />
-            <HealthMetric label="Warm/hot follow-ups" value={formatPercentValue(followUpCoverage)} />
-            <HealthMetric label="Visible needs attention" value={visibleNeedsAttention} />
+            <HealthMetric
+              label="Conversion rate"
+              value={formatPercentValue(conversionRate)}
+            />
+            <HealthMetric
+              label="Warm/hot follow-ups"
+              value={formatPercentValue(followUpCoverage)}
+            />
+            <HealthMetric
+              label="Visible needs attention"
+              value={visibleNeedsAttention}
+            />
           </CardContent>
         </Card>
       </div>
@@ -485,9 +703,12 @@ export function SalesProspectsPanel() {
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle className="text-lg font-medium">Sales Cycle Prospects</CardTitle>
+              <CardTitle className="text-lg font-medium">
+                Sales Cycle Prospects
+              </CardTitle>
               <CardDescription>
-                {prospects.data?.total ?? 0} record{(prospects.data?.total ?? 0) === 1 ? "" : "s"} in this view
+                {prospects.data?.total ?? 0} record
+                {(prospects.data?.total ?? 0) === 1 ? "" : "s"} in this view
               </CardDescription>
             </div>
             {prospects.isFetching && !prospects.isLoading && (
@@ -520,7 +741,9 @@ export function SalesProspectsPanel() {
                       <TableHead>Prospect name</TableHead>
                       <TableHead>Mobile number</TableHead>
                       <TableHead>Product/service type</TableHead>
-                      <TableHead className="text-right">Proposal value</TableHead>
+                      <TableHead className="text-right">
+                        Proposal value
+                      </TableHead>
                       <TableHead>Referral source</TableHead>
                       <TableHead>Last follow-up</TableHead>
                       <TableHead>Next action</TableHead>
@@ -533,26 +756,46 @@ export function SalesProspectsPanel() {
                   <TableBody>
                     {rows.map((row) => (
                       <TableRow key={row.id}>
-                        <TableCell className="whitespace-nowrap">{row.month}</TableCell>
-                        <TableCell className="whitespace-nowrap">{formatDate(row.firstCallAt)}</TableCell>
-                        <TableCell className="min-w-44 font-medium">{row.prospectName}</TableCell>
-                        <TableCell className="whitespace-nowrap">{row.mobileNumber || "-"}</TableCell>
-                        <TableCell className="min-w-44">{row.offeringType || "-"}</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {row.month}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {formatDate(row.firstCallAt)}
+                        </TableCell>
+                        <TableCell className="min-w-44 font-medium">
+                          {row.prospectName}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {row.mobileNumber || "-"}
+                        </TableCell>
+                        <TableCell className="min-w-44">
+                          {row.offeringType || "-"}
+                        </TableCell>
                         <TableCell className="text-right">
                           {formatCurrencyINR(row.proposalValue ?? 0)}
                         </TableCell>
-                        <TableCell className="min-w-36">{row.referralSource || "-"}</TableCell>
-                        <TableCell className="whitespace-nowrap">{formatDate(row.lastFollowUpAt)}</TableCell>
+                        <TableCell className="min-w-36">
+                          {row.referralSource || "-"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {formatDate(row.lastFollowUpAt)}
+                        </TableCell>
                         <TableCell className="min-w-44">
                           <Badge variant={getFollowUpSignal(row).variant}>
                             {getFollowUpSignal(row).label}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={getStatusVariant(row.status)}>{statusLabels[row.status]}</Badge>
+                          <Badge variant={getStatusVariant(row.status)}>
+                            {statusLabels[row.status]}
+                          </Badge>
                         </TableCell>
-                        <TableCell>{row.reason ? reasonLabels[row.reason] : "-"}</TableCell>
-                        <TableCell className="max-w-72 truncate">{row.remarks || "-"}</TableCell>
+                        <TableCell>
+                          {row.reason ? reasonLabels[row.reason] : "-"}
+                        </TableCell>
+                        <TableCell className="max-w-72 truncate">
+                          {row.remarks || "-"}
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex min-w-72 flex-wrap justify-end gap-1">
                             {activeStatuses.has(row.status) && (
@@ -576,18 +819,31 @@ export function SalesProspectsPanel() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => quickUpdate(row, { status: "WARM" }, `${row.prospectName} marked warm`)}
+                                onClick={() =>
+                                  quickUpdate(
+                                    row,
+                                    { status: "WARM" },
+                                    `${row.prospectName} marked warm`,
+                                  )
+                                }
                                 disabled={updateMutation.isPending}
                               >
                                 <Flame className="mr-1 size-3.5" />
                                 Warm
                               </Button>
                             )}
-                            {(row.status === "COLD" || row.status === "WARM") && (
+                            {(row.status === "COLD" ||
+                              row.status === "WARM") && (
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => quickUpdate(row, { status: "HOT" }, `${row.prospectName} marked hot`)}
+                                onClick={() =>
+                                  quickUpdate(
+                                    row,
+                                    { status: "HOT" },
+                                    `${row.prospectName} marked hot`,
+                                  )
+                                }
                                 disabled={updateMutation.isPending}
                               >
                                 <Flame className="mr-1 size-3.5" />
@@ -599,7 +855,11 @@ export function SalesProspectsPanel() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() =>
-                                  quickUpdate(row, { status: "CONVERTED" }, `${row.prospectName} marked converted`)
+                                  quickUpdate(
+                                    row,
+                                    { status: "CONVERTED" },
+                                    `${row.prospectName} marked converted`,
+                                  )
                                 }
                                 disabled={updateMutation.isPending}
                               >
@@ -607,27 +867,44 @@ export function SalesProspectsPanel() {
                                 Won
                               </Button>
                             )}
-                            <Button variant="ghost" size="icon" onClick={() => startEdit(row)}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => startEdit(row)}
+                            >
                               <Edit className="size-4" />
-                              <span className="sr-only">Edit {row.prospectName}</span>
+                              <span className="sr-only">
+                                Edit {row.prospectName}
+                              </span>
                             </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" disabled={deleteMutation.isPending}>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  disabled={deleteMutation.isPending}
+                                >
                                   <Trash2 className="size-4" />
-                                  <span className="sr-only">Delete {row.prospectName}</span>
+                                  <span className="sr-only">
+                                    Delete {row.prospectName}
+                                  </span>
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete prospect?</AlertDialogTitle>
+                                  <AlertDialogTitle>
+                                    Delete prospect?
+                                  </AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    This removes {row.prospectName} from the sales cycle tracker.
+                                    This removes {row.prospectName} from the
+                                    sales cycle tracker.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => removeProspect(row.id)}>
+                                  <AlertDialogAction
+                                    onClick={() => removeProspect(row.id)}
+                                  >
                                     Delete
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
@@ -643,7 +920,8 @@ export function SalesProspectsPanel() {
 
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm text-muted-foreground">
-                  Page {prospects.data?.page ?? page} of {Math.max(totalPages, 1)}
+                  Page {prospects.data?.page ?? page} of{" "}
+                  {Math.max(totalPages, 1)}
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -672,13 +950,19 @@ export function SalesProspectsPanel() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit prospect" : "Add prospect"}</DialogTitle>
+            <DialogTitle>
+              {editing ? "Edit prospect" : "Add prospect"}
+            </DialogTitle>
             <DialogDescription>
-              Capture the Sales Cycle fields from first call through closure reason.
+              Capture the Sales Cycle fields from first call through closure
+              reason.
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 md:grid-cols-2">
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="grid gap-4 md:grid-cols-2"
+            >
               <FormField
                 control={form.control}
                 name="month"
@@ -738,7 +1022,10 @@ export function SalesProspectsPanel() {
                   <FormItem>
                     <FormLabel>Product/service type</FormLabel>
                     <FormControl>
-                      <Input placeholder="Sales excellence workshop" {...field} />
+                      <Input
+                        placeholder="Sales excellence workshop"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -751,7 +1038,12 @@ export function SalesProspectsPanel() {
                   <FormItem>
                     <FormLabel>Proposal value</FormLabel>
                     <FormControl>
-                      <Input type="number" min="0" placeholder="150000" {...field} />
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="150000"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -764,7 +1056,10 @@ export function SalesProspectsPanel() {
                   <FormItem>
                     <FormLabel>Referral source</FormLabel>
                     <FormControl>
-                      <Input placeholder="Referral, LinkedIn, event" {...field} />
+                      <Input
+                        placeholder="Referral, LinkedIn, event"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -839,14 +1134,22 @@ export function SalesProspectsPanel() {
                   <FormItem className="md:col-span-2">
                     <FormLabel>Remarks</FormLabel>
                     <FormControl>
-                      <Textarea rows={3} placeholder="Follow-up notes, next step, blocker" {...field} />
+                      <Textarea
+                        rows={3}
+                        placeholder="Follow-up notes, next step, blocker"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <div className="flex justify-end gap-2 md:col-span-2">
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button type="submit" disabled={isSaving}>
@@ -876,7 +1179,9 @@ function SummaryCard({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          {title}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -884,7 +1189,9 @@ function SummaryCard({
         ) : (
           <>
             <p className="text-2xl font-semibold">{value}</p>
-            {caption && <p className="mt-1 text-xs text-muted-foreground">{caption}</p>}
+            {caption && (
+              <p className="mt-1 text-xs text-muted-foreground">{caption}</p>
+            )}
           </>
         )}
       </CardContent>
@@ -892,7 +1199,13 @@ function SummaryCard({
   );
 }
 
-function HealthMetric({ label, value }: { label: string; value: string | number }) {
+function HealthMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
   return (
     <div className="rounded-md border px-3 py-2">
       <p className="text-xs text-muted-foreground">{label}</p>
