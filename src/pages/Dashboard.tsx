@@ -16,6 +16,7 @@ import {
   Users,
 } from "lucide-react";
 import { getDashboardSummary } from "../lib/api";
+import { useDashboardGuidance } from "@/hooks/useDashboardGuidance";
 import { formatCurrencyINR, formatPercent } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import { KpiCard, KpiCardSkeleton } from "@/components/ui/kpi-card";
@@ -27,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { FirstWeekChecklist } from "@/components/FirstWeekChecklist";
 import { BusinessSetupCard } from "@/components/BusinessSetupCard";
+import { GuidanceCoachPanel } from "@/components/GuidanceCoachPanel";
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -108,6 +110,7 @@ const Dashboard = () => {
     queryFn: getDashboardSummary,
     staleTime: 60 * 1000,
   });
+  const guidanceQuery = useDashboardGuidance();
 
   const greeting = getGreeting();
   const userName = data?.userName || "there";
@@ -235,6 +238,14 @@ const Dashboard = () => {
 
       {!hasData && <FirstWeekChecklist />}
       {!cockpit.setup.isComplete && <BusinessSetupCard />}
+
+      <GuidanceCoachPanel
+        guidance={guidanceQuery.data}
+        isLoading={guidanceQuery.isLoading}
+        isError={guidanceQuery.isError}
+        isFetching={guidanceQuery.isFetching}
+        onRefresh={() => guidanceQuery.refetch()}
+      />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <KpiCard

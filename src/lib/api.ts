@@ -271,6 +271,42 @@ export async function getDashboardSummary(): Promise<DashboardSummaryResponse> {
   return await api("/api/v1/dashboard/summary");
 }
 
+export type GuidanceCardType = "next_action" | "insight" | "celebration";
+export type GuidancePriority = "high" | "medium" | "low";
+export type GuidanceSource = "setup" | "sales" | "crm" | "activity" | "profile";
+export type GuidanceSignalStatus = "good" | "watch" | "risk";
+
+export type DashboardGuidanceResponse = {
+  summary: {
+    title: string;
+    message: string;
+    tone: "encouraging";
+    healthScore: number;
+  };
+  cards: Array<{
+    id: string;
+    type: GuidanceCardType;
+    priority: GuidancePriority;
+    title: string;
+    message: string;
+    actionLabel: string;
+    actionRoute: string;
+    source: GuidanceSource;
+  }>;
+  signals: Array<{
+    key: string;
+    label: string;
+    value: number;
+    unit: "count" | "percent" | "currency";
+    status: GuidanceSignalStatus;
+  }>;
+  generatedAt?: string;
+};
+
+export async function getDashboardGuidance(): Promise<DashboardGuidanceResponse> {
+  return await api("/api/v1/dashboard/guidance");
+}
+
 export async function getMetrics() {
   return await api("/api/v1/metrics");
 }
