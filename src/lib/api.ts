@@ -329,6 +329,96 @@ export async function getDashboardGuidance(): Promise<DashboardGuidanceResponse>
   return await api("/api/v1/dashboard/guidance");
 }
 
+export type CoachState =
+  | "SETUP_INCOMPLETE"
+  | "CATCH_UP_REQUIRED"
+  | "INACTIVE"
+  | "ACHIEVED"
+  | "BEHIND"
+  | "ON_TRACK"
+  | "AHEAD";
+
+export type CoachActionPriority = "required" | "stretch";
+export type CoachActionSource =
+  | "setup"
+  | "catch_up"
+  | "sales"
+  | "crm"
+  | "activity"
+  | "profile";
+
+export type CoachAction = {
+  type: string;
+  title: string;
+  reason: string;
+  priority: CoachActionPriority;
+  cta: string;
+  route?: string;
+  source: CoachActionSource;
+};
+
+export type CoachGuidanceResponse = {
+  state: CoachState;
+  message: string;
+  stats: {
+    weeklyTarget: number;
+    achievedSoFar: number;
+    expectedByToday: number;
+    remaining: number;
+    activityDone: number;
+    activityGoal: number;
+    followupsDue: number;
+  };
+  actions: CoachAction[];
+  celebration?: {
+    type: string;
+    message: string;
+  };
+  generatedAt?: string;
+};
+
+export type CoachCatchUpPayload = {
+  salesRevenue?: number;
+  orderCount?: number;
+  activitiesCompleted?: Array<{
+    title: string;
+    category: string;
+    occurredOn: string;
+  }>;
+  prospects?: Array<{
+    name: string;
+    status: "COLD" | "WARM" | "HOT";
+    nextAction?: string;
+    nextFollowUpDate?: string;
+  }>;
+  notes?: string;
+};
+
+export async function getCoachToday(): Promise<CoachGuidanceResponse> {
+  return await api("/api/v1/coach/today");
+}
+
+export async function getCoachSales(): Promise<CoachGuidanceResponse> {
+  return await api("/api/v1/coach/sales");
+}
+
+export async function getCoachActivities(): Promise<CoachGuidanceResponse> {
+  return await api("/api/v1/coach/activities");
+}
+
+export async function getCoachCrm(): Promise<CoachGuidanceResponse> {
+  return await api("/api/v1/coach/crm");
+}
+
+export async function saveCoachCatchUp(
+  payload: CoachCatchUpPayload,
+): Promise<CoachGuidanceResponse> {
+  return await api("/api/v1/coach/catch-up", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function getMetrics() {
   return await api("/api/v1/metrics");
 }

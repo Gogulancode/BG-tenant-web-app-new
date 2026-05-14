@@ -59,6 +59,10 @@ import {
   invalidateOperatingSystem,
   invalidateSalesOperatingData,
 } from "@/lib/queryInvalidation";
+import { CoachCatchUpCard } from "@/components/coach/CoachCatchUpCard";
+import { CoachDailyPlan } from "@/components/coach/CoachDailyPlan";
+import { useCoachToday, useSaveCoachCatchUp } from "@/hooks/useCoachGuidance";
+import type { CoachAction, CoachCatchUpPayload } from "@/lib/api";
 
 interface Outcome {
   id: string;
@@ -769,6 +773,8 @@ export default function Today() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const greeting = getGreeting();
+  const coachQuery = useCoachToday();
+  const saveCatchUp = useSaveCoachCatchUp();
 
   const {
     data: dashboardData,
@@ -798,6 +804,10 @@ export default function Today() {
     : (outcomesData?.data ?? []);
   const metrics: Metric[] = Array.isArray(metricsData) ? metricsData : [];
   const cockpit = dashboardData?.cockpit;
+  const coach = coachQuery.data;
+  const primaryCoachAction = coach?.actions.find((action) => action.route) as
+    | CoachAction
+    | undefined;
 
   const toggleOutcome = useMutation({
     mutationFn: async (outcome: Outcome) => {
@@ -842,6 +852,24 @@ export default function Today() {
     [],
   );
 
+  const handleSaveCatchUp = async (payload: CoachCatchUpPayload) => {
+    try {
+      await saveCatchUp.mutateAsync(payload);
+      toast({
+        title: "Catch-up saved",
+        description: "Your coach plan is recalculating from the same data.",
+      });
+      void refetch();
+    } catch (error) {
+      toast({
+        title: "Unable to save catch-up",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -877,59 +905,115 @@ export default function Today() {
         <>
           <InteractiveCoachHero
             actionLabel={
-              !cockpit.setup.isComplete
+              primaryCoachAction?.cta ??
+              (!cockpit.setup.isComplete
                 ? "Finish setup"
                 : cockpit.activities.dueToday.length > 0
                   ? "Do first action"
                   : cockpit.crm.activeFollowUps > 0
                     ? "Move CRM"
-                    : "Plan the week"
+                    : "Plan the week")
             }
             icon={Sparkles}
-            metricLabel="Momentum"
-            metricValue={`${Math.round(cockpit.insights.momentumScore)}%`}
-            progress={cockpit.insights.momentumScore}
-            steps={[
-              {
-                label: cockpit.setup.isComplete
-                  ? "Pick one input"
-                  : "Complete setup",
-                helper: cockpit.setup.isComplete
-                  ? "Activity, outcome, CRM touch, or metric."
-                  : "Add the business details that power guidance.",
-              },
-              {
-                label: cockpit.setup.isComplete ? "Save proof" : "Build rhythm",
-                helper: cockpit.setup.isComplete
-                  ? "Log the action so the system can react."
-                  : "Targets, activities, and CRM become more useful after setup.",
-              },
-              {
-                label: cockpit.setup.isComplete ? "Move next" : "Start today",
-                helper: cockpit.setup.isComplete
-                  ? "Follow the next card after the save."
-                  : "Once setup is done, this page guides the daily action.",
-              },
-            ]}
+            metricLabel={
+              coach?.state === "CATCH_UP_REQUIRED"
+                ? "Expected by today"
+                : "Momentum"
+            }
+            metricValue={
+              coach?.state === "CATCH_UP_REQUIRED"
+                ? formatCurrencyINR(coach.stats.expectedByToday)
+                : `${Math.round(cockpit.insights.momentumScore)}%`
+            }
+            progress={
+              coach?.stats.weeklyTarget
+                ? Math.min(
+                    100,
+                    (coach.stats.achievedSoFar / coach.stats.weeklyTarget) *
+                      100,
+                  )
+                : cockpit.insights.momentumScore
+            }
+            steps={
+              coach
+                ? [
+                    {
+                      label:
+                        coach.state === "CATCH_UP_REQUIRED"
+                          ? "Catch up"
+                          : "Know the gap",
+                      helper:
+                        coach.state === "CATCH_UP_REQUIRED"
+                          ? "Add Monday-to-today progress."
+                          : `${formatCurrencyINR(coach.stats.remaining)} left this week.`,
+                    },
+                    {
+                      label: "Do the plan",
+                      helper: "Complete the required coach actions.",
+                    },
+                    {
+                      label: "See what changed",
+                      helper: "Save actions and guidance refreshes.",
+                    },
+                  ]
+                : [
+                    {
+                      label: cockpit.setup.isComplete
+                        ? "Pick one input"
+                        : "Complete setup",
+                      helper: cockpit.setup.isComplete
+                        ? "Activity, outcome, CRM touch, or metric."
+                        : "Add the business details that power guidance.",
+                    },
+                    {
+                      label: cockpit.setup.isComplete
+                        ? "Save proof"
+                        : "Build rhythm",
+                      helper: cockpit.setup.isComplete
+                        ? "Log the action so the system can react."
+                        : "Targets, activities, and CRM become more useful after setup.",
+                    },
+                    {
+                      label: cockpit.setup.isComplete
+                        ? "Move next"
+                        : "Start today",
+                      helper: cockpit.setup.isComplete
+                        ? "Follow the next card after the save."
+                        : "Once setup is done, this page guides the daily action.",
+                    },
+                  ]
+            }
             title={
-              cockpit.setup.isComplete
+              coach?.actions[0]?.title ??
+              (cockpit.setup.isComplete
                 ? "Today is about the next useful business action"
-                : "Finish the business foundation first"
+                : "Finish the business foundation first")
             }
             to={
-              !cockpit.setup.isComplete
+              primaryCoachAction?.route ??
+              (!cockpit.setup.isComplete
                 ? "/onboarding"
                 : cockpit.activities.dueToday.length > 0
                   ? "/activities"
                   : cockpit.crm.activeFollowUps > 0
                     ? "/sales"
-                    : "/onboarding"
+                    : "/onboarding")
             }
           >
-            {cockpit.setup.isComplete
-              ? "Use this page like a daily operating room: choose the next action, save it, then let the coach show what changed and what to do next."
-              : "Complete setup so the app can guide activities, CRM, outcomes, and sales from your own business model."}
+            {coach?.message ??
+              (cockpit.setup.isComplete
+                ? "Use this page like a daily operating room: choose the next action, save it, then let the coach show what changed and what to do next."
+                : "Complete setup so the app can guide activities, CRM, outcomes, and sales from your own business model.")}
           </InteractiveCoachHero>
+
+          {coach?.state === "CATCH_UP_REQUIRED" ? (
+            <CoachCatchUpCard
+              isSaving={saveCatchUp.isPending}
+              onSave={handleSaveCatchUp}
+            />
+          ) : null}
+
+          {coach ? <CoachDailyPlan actions={coach.actions} /> : null}
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Card>
