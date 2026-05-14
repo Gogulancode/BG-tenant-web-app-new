@@ -56,7 +56,7 @@ export default function Onboarding() {
     refetch,
   } = useOnboardingState();
   const updateOnboarding = useUpdateOnboarding();
-  
+
   // Prevent redirect loops
   const hasNavigated = useRef(false);
 
@@ -66,25 +66,21 @@ export default function Onboarding() {
   // Determine current step from backend state
   useEffect(() => {
     if (onboardingState && !hasNavigated.current) {
-      // Check if already completed - only redirect once
-      if (onboardingState.isCompleted) {
-        hasNavigated.current = true;
-        navigate("/today", { replace: true });
-        return;
-      }
-
       // Calculate step from flags
       const step = getStepFromFlags({
         profileCompleted: onboardingState.profileCompleted ?? false,
-        businessIdentityCompleted: onboardingState.businessIdentityCompleted ?? false,
+        businessIdentityCompleted:
+          onboardingState.businessIdentityCompleted ?? false,
         salesPlanCompleted: onboardingState.salesPlanCompleted ?? false,
-        activityConfigCompleted: onboardingState.activityConfigCompleted ?? false,
+        activityConfigCompleted:
+          onboardingState.activityConfigCompleted ?? false,
         salesCycleCompleted: onboardingState.salesCycleCompleted ?? false,
-        achievementStagesCompleted: onboardingState.achievementStagesCompleted ?? false,
+        achievementStagesCompleted:
+          onboardingState.achievementStagesCompleted ?? false,
         subscriptionCompleted: onboardingState.subscriptionCompleted ?? false,
         visualSetupCompleted: onboardingState.visualSetupCompleted ?? false,
       });
-      setActiveStep(step);
+      setActiveStep(onboardingState.isCompleted ? 8 : step);
     }
   }, [onboardingState, navigate]);
 
@@ -133,7 +129,9 @@ export default function Onboarding() {
               <AlertTriangle className="h-7 w-7 text-destructive" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-foreground">Unable to load setup</h1>
+              <h1 className="text-lg font-semibold text-foreground">
+                Unable to load setup
+              </h1>
               <p className="mt-1 text-sm text-muted-foreground">
                 {onboardingError?.message ||
                   "We could not load your onboarding progress. Retry before continuing."}
@@ -156,8 +154,12 @@ export default function Onboarding() {
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold text-foreground">BG Accountability</h1>
-              <p className="text-sm text-muted-foreground">Let's get you set up</p>
+              <h1 className="text-xl font-bold text-foreground">
+                BG Accountability
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Let's get you set up
+              </p>
             </div>
             <div className="text-right">
               <p className="text-sm font-medium">
@@ -193,39 +195,60 @@ export default function Onboarding() {
                       "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all",
                       isActive && "bg-primary text-primary-foreground",
                       !isActive && isCompleted && "bg-muted hover:bg-muted/80",
-                      !isActive && !isCompleted && isAccessible && "hover:bg-muted/50",
-                      !isAccessible && "opacity-50 cursor-not-allowed"
+                      !isActive &&
+                        !isCompleted &&
+                        isAccessible &&
+                        "hover:bg-muted/50",
+                      !isAccessible && "opacity-50 cursor-not-allowed",
                     )}
                   >
-                    <div className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-full",
-                      isActive && "bg-primary-foreground/20",
-                      isCompleted && !isActive && "bg-green-100 dark:bg-green-900/30",
-                      !isActive && !isCompleted && "bg-muted"
-                    )}>
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-full",
+                        isActive && "bg-primary-foreground/20",
+                        isCompleted &&
+                          !isActive &&
+                          "bg-green-100 dark:bg-green-900/30",
+                        !isActive && !isCompleted && "bg-muted",
+                      )}
+                    >
                       {isCompleted ? (
-                        <Check className={cn(
-                          "h-4 w-4",
-                          isActive ? "text-primary-foreground" : "text-green-600"
-                        )} />
+                        <Check
+                          className={cn(
+                            "h-4 w-4",
+                            isActive
+                              ? "text-primary-foreground"
+                              : "text-green-600",
+                          )}
+                        />
                       ) : (
-                        <Icon className={cn(
-                          "h-4 w-4",
-                          isActive ? "text-primary-foreground" : "text-muted-foreground"
-                        )} />
+                        <Icon
+                          className={cn(
+                            "h-4 w-4",
+                            isActive
+                              ? "text-primary-foreground"
+                              : "text-muted-foreground",
+                          )}
+                        />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={cn(
-                        "text-sm font-medium truncate",
-                        !isActive && !isCompleted && "text-muted-foreground"
-                      )}>
+                      <p
+                        className={cn(
+                          "text-sm font-medium truncate",
+                          !isActive && !isCompleted && "text-muted-foreground",
+                        )}
+                      >
                         {step.label}
                       </p>
-                      <p className={cn(
-                        "text-xs",
-                        isActive ? "text-primary-foreground/70" : "text-muted-foreground"
-                      )}>
+                      <p
+                        className={cn(
+                          "text-xs",
+                          isActive
+                            ? "text-primary-foreground/70"
+                            : "text-muted-foreground",
+                        )}
+                      >
                         Step {stepNum}
                       </p>
                     </div>
@@ -250,8 +273,12 @@ export default function Onboarding() {
                     className={cn(
                       "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium",
                       isActive && "bg-primary text-primary-foreground",
-                      isCompleted && !isActive && "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                      !isActive && !isCompleted && "bg-muted text-muted-foreground"
+                      isCompleted &&
+                        !isActive &&
+                        "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                      !isActive &&
+                        !isCompleted &&
+                        "bg-muted text-muted-foreground",
                     )}
                   >
                     {isCompleted ? <Check className="h-4 w-4" /> : stepNum}
@@ -263,12 +290,30 @@ export default function Onboarding() {
             {/* Step Content */}
             <div className="bg-background rounded-xl border shadow-sm p-6 md:p-8">
               {activeStep === 1 && <Step1Profile onNext={handleNext} />}
-              {activeStep === 2 && <Step2BusinessIdentity onNext={handleNext} onBack={handleBack} />}
-              {activeStep === 3 && <Step3SalesPlan onNext={handleNext} onBack={handleBack} />}
-              {activeStep === 4 && <Step4ActivitySetup onNext={handleNext} onBack={handleBack} />}
-              {activeStep === 5 && <Step5SalesCycle onNext={handleNext} onBack={handleBack} />}
-              {activeStep === 6 && <Step6AchievementStages onNext={handleNext} onBack={handleBack} />}
-              {activeStep === 7 && <Step7Subscription onNext={handleNext} onBack={handleBack} />}
+              {activeStep === 2 && (
+                <Step2BusinessIdentity
+                  onNext={handleNext}
+                  onBack={handleBack}
+                />
+              )}
+              {activeStep === 3 && (
+                <Step3SalesPlan onNext={handleNext} onBack={handleBack} />
+              )}
+              {activeStep === 4 && (
+                <Step4ActivitySetup onNext={handleNext} onBack={handleBack} />
+              )}
+              {activeStep === 5 && (
+                <Step5SalesCycle onNext={handleNext} onBack={handleBack} />
+              )}
+              {activeStep === 6 && (
+                <Step6AchievementStages
+                  onNext={handleNext}
+                  onBack={handleBack}
+                />
+              )}
+              {activeStep === 7 && (
+                <Step7Subscription onNext={handleNext} onBack={handleBack} />
+              )}
               {activeStep === 8 && <Step8Complete onBack={handleBack} />}
             </div>
 

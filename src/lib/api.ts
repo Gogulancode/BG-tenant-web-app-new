@@ -10,7 +10,9 @@ import {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export const API_URL = (import.meta.env.VITE_API_URL ?? "").trim().replace(/\/$/, "");
+export const API_URL = (import.meta.env.VITE_API_URL ?? "")
+  .trim()
+  .replace(/\/$/, "");
 
 let isRefreshing = false;
 let refreshWaiters: Array<() => void> = [];
@@ -66,7 +68,10 @@ export async function refreshToken(): Promise<boolean> {
   }
 }
 
-export async function api(path: string, options: RequestInit = {}): Promise<any> {
+export async function api(
+  path: string,
+  options: RequestInit = {},
+): Promise<any> {
   const accessToken = getAccessToken();
 
   const headers: HeadersInit = {
@@ -87,7 +92,7 @@ export async function api(path: string, options: RequestInit = {}): Promise<any>
     // Handle empty responses or non-JSON responses
     const contentType = initialResponse.headers.get("content-type");
     const text = await initialResponse.text();
-    
+
     if (!initialResponse.ok) {
       // Try to parse error message from response
       let errorMessage = `Request failed with status ${initialResponse.status}`;
@@ -101,16 +106,16 @@ export async function api(path: string, options: RequestInit = {}): Promise<any>
       }
       throw new Error(errorMessage);
     }
-    
+
     // Return parsed JSON or null for empty responses
     if (!text || text.trim() === "") {
       return null;
     }
-    
+
     if (contentType?.includes("application/json")) {
       return JSON.parse(text);
     }
-    
+
     return text;
   }
 
@@ -138,7 +143,7 @@ export async function api(path: string, options: RequestInit = {}): Promise<any>
   // Handle retry response the same way
   const retryContentType = retryResponse.headers.get("content-type");
   const retryText = await retryResponse.text();
-  
+
   if (!retryResponse.ok) {
     let errorMessage = `Request failed with status ${retryResponse.status}`;
     if (retryText) {
@@ -151,15 +156,15 @@ export async function api(path: string, options: RequestInit = {}): Promise<any>
     }
     throw new Error(errorMessage);
   }
-  
+
   if (!retryText || retryText.trim() === "") {
     return null;
   }
-  
+
   if (retryContentType?.includes("application/json")) {
     return JSON.parse(retryText);
   }
-  
+
   return retryText;
 }
 
@@ -344,14 +349,21 @@ export async function getOutcomes(weekStart?: string) {
   return await api(`/api/v1/outcomes${params}`);
 }
 
-export async function createOutcome(title: string, weekStartDate: string, status: string = "Planned") {
+export async function createOutcome(
+  title: string,
+  weekStartDate: string,
+  status: string = "Planned",
+) {
   return await api("/api/v1/outcomes", {
     method: "POST",
     body: JSON.stringify({ title, weekStartDate, status }),
   });
 }
 
-export async function updateOutcome(id: string, updates: { title?: string; status?: string }) {
+export async function updateOutcome(
+  id: string,
+  updates: { title?: string; status?: string },
+) {
   return await api(`/api/v1/outcomes/${id}`, {
     method: "PUT",
     body: JSON.stringify(updates),
@@ -401,7 +413,12 @@ export async function createSalesEntry(payload: {
   });
 }
 
-export type SalesProspectStatus = "COLD" | "WARM" | "HOT" | "CONVERTED" | "REJECTED";
+export type SalesProspectStatus =
+  | "COLD"
+  | "WARM"
+  | "HOT"
+  | "CONVERTED"
+  | "REJECTED";
 export type SalesProspectReason =
   | "BUDGET"
   | "AUTHORITY"
@@ -469,7 +486,9 @@ export type SalesProspectSummary = {
   byStatus: Partial<Record<SalesProspectStatus, number>>;
 };
 
-function toSalesProspectQuery(params: SalesProspectListParams | { month?: string }) {
+function toSalesProspectQuery(
+  params: SalesProspectListParams | { month?: string },
+) {
   const searchParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
@@ -488,11 +507,17 @@ export async function getSalesProspects(
   return await api(`/api/v1/sales/prospects${toSalesProspectQuery(params)}`);
 }
 
-export async function getSalesProspectSummary(month?: string): Promise<SalesProspectSummary> {
-  return await api(`/api/v1/sales/prospects/summary${toSalesProspectQuery({ month })}`);
+export async function getSalesProspectSummary(
+  month?: string,
+): Promise<SalesProspectSummary> {
+  return await api(
+    `/api/v1/sales/prospects/summary${toSalesProspectQuery({ month })}`,
+  );
 }
 
-export async function createSalesProspect(payload: SalesProspectPayload): Promise<SalesProspect> {
+export async function createSalesProspect(
+  payload: SalesProspectPayload,
+): Promise<SalesProspect> {
   return await api("/api/v1/sales/prospects", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -509,7 +534,9 @@ export async function updateSalesProspect(
   });
 }
 
-export async function deleteSalesProspect(id: string): Promise<{ deleted: boolean }> {
+export async function deleteSalesProspect(
+  id: string,
+): Promise<{ deleted: boolean }> {
   return await api(`/api/v1/sales/prospects/${id}`, { method: "DELETE" });
 }
 
@@ -610,7 +637,9 @@ export async function getActivities(filters?: {
   return await api(`/api/v1/activities${queryString ? `?${queryString}` : ""}`);
 }
 
-export async function createActivity(payload: ActivityPayload): Promise<ActivityRecord> {
+export async function createActivity(
+  payload: ActivityPayload,
+): Promise<ActivityRecord> {
   return await api("/api/v1/activities", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -753,7 +782,9 @@ export async function registerUser(payload: {
   });
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: "Registration failed" }));
+    const error = await res
+      .json()
+      .catch(() => ({ message: "Registration failed" }));
     throw new Error(error.message || "Registration failed");
   }
 
@@ -801,7 +832,11 @@ export async function getCurrentUser() {
   return await api("/api/v1/users/me");
 }
 
-export async function inviteUser(payload: { email: string; name: string; role: string }) {
+export async function inviteUser(payload: {
+  email: string;
+  name: string;
+  role: string;
+}) {
   return await api("/api/v1/users", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -830,7 +865,10 @@ export async function createMetric(payload: { name: string; target?: number }) {
   });
 }
 
-export async function updateMetric(metricId: string, payload: { name?: string; target?: number }) {
+export async function updateMetric(
+  metricId: string,
+  payload: { name?: string; target?: number },
+) {
   return await api(`/api/v1/metrics/${metricId}`, {
     method: "PUT",
     body: JSON.stringify(payload),
@@ -864,13 +902,17 @@ export async function getTemplates() {
   return { metrics, outcomes, activities };
 }
 
-export async function createTemplate(payload: { name: string; target?: number; description?: string }) {
+export async function createTemplate(payload: {
+  name: string;
+  target?: number;
+  description?: string;
+}) {
   throw new Error("Template creation is managed from Superadmin");
 }
 
 export async function updateTemplate(
   templateId: string,
-  payload: { name?: string; target?: number; description?: string }
+  payload: { name?: string; target?: number; description?: string },
 ) {
   throw new Error("Template updates are managed from Superadmin");
 }
@@ -880,7 +922,10 @@ export async function deleteTemplate(templateId: string) {
 }
 
 // Apply template endpoints - creates actual items from templates
-export async function applyMetricTemplate(templateId: string, customTarget?: number) {
+export async function applyMetricTemplate(
+  templateId: string,
+  customTarget?: number,
+) {
   return await api(`/api/v1/templates/metrics/${templateId}/apply`, {
     method: "POST",
     body: JSON.stringify({ target: customTarget }),
@@ -945,11 +990,13 @@ export type BusinessProfileReport = {
     customerSegmentDefined: boolean;
     customerSegmentValue?: string | null;
   } | null;
-  salesPlan: (SalesPlanResponse & {
-    expectedMonthlyRevenue: number;
-    expectedMonthlyOrders: number;
-    expectedMonthlyLeads: number;
-  }) | null;
+  salesPlan:
+    | (SalesPlanResponse & {
+        expectedMonthlyRevenue: number;
+        expectedMonthlyOrders: number;
+        expectedMonthlyLeads: number;
+      })
+    | null;
   activities: {
     weeklyActivityGoal: number;
     enableReminders: boolean;
@@ -986,7 +1033,10 @@ export async function getBusinessProfileReport(): Promise<BusinessProfileReport>
   return await api("/api/v1/reports/business-profile");
 }
 
-export async function generateReport(payload: { type: "weekly" | "monthly"; format?: string }) {
+export async function generateReport(payload: {
+  type: "weekly" | "monthly";
+  format?: string;
+}) {
   return await api("/api/v1/reports/generate", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -996,7 +1046,7 @@ export async function generateReport(payload: { type: "weekly" | "monthly"; form
 // ----------- NOTIFICATIONS -----------
 export async function getNotifications() {
   const data = await api("/api/v1/notifications");
-  return Array.isArray(data) ? data : data?.notifications ?? [];
+  return Array.isArray(data) ? data : (data?.notifications ?? []);
 }
 
 export async function markNotificationRead(notificationId: string) {
@@ -1013,7 +1063,7 @@ export async function markAllNotificationsRead() {
 
 export async function getUnreadNotificationCount() {
   const data = await api("/api/v1/notifications/unread-count");
-  return typeof data === "number" ? data : data?.count ?? 0;
+  return typeof data === "number" ? data : (data?.count ?? 0);
 }
 
 // ----------- SUPPORT -----------
@@ -1028,7 +1078,11 @@ function toWebEnum(value?: string | null) {
 function normalizeTicketComment(comment: any) {
   return {
     ...comment,
-    userName: comment?.userName ?? comment?.user?.name ?? comment?.user?.email ?? "Team member",
+    userName:
+      comment?.userName ??
+      comment?.user?.name ??
+      comment?.user?.email ??
+      "Team member",
   };
 }
 
@@ -1046,11 +1100,15 @@ function normalizeSupportTicket(ticket: any) {
 
 export async function getSupportTickets() {
   const data = await api("/api/v1/support/tickets/my");
-  const tickets = Array.isArray(data) ? data : data?.data ?? [];
+  const tickets = Array.isArray(data) ? data : (data?.data ?? []);
   return tickets.map(normalizeSupportTicket);
 }
 
-export async function createSupportTicket(payload: { subject: string; message: string; priority?: string }) {
+export async function createSupportTicket(payload: {
+  subject: string;
+  message: string;
+  priority?: string;
+}) {
   const ticket = await api("/api/v1/support/tickets", {
     method: "POST",
     body: JSON.stringify({ ...payload, priority: toApiEnum(payload.priority) }),
@@ -1059,7 +1117,9 @@ export async function createSupportTicket(payload: { subject: string; message: s
 }
 
 export async function getSupportTicket(ticketId: string) {
-  return normalizeSupportTicket(await api(`/api/v1/support/tickets/${ticketId}`));
+  return normalizeSupportTicket(
+    await api(`/api/v1/support/tickets/${ticketId}`),
+  );
 }
 
 export async function addTicketComment(ticketId: string, message: string) {
@@ -1180,7 +1240,8 @@ export const SubscriptionPlan = {
   PROFESSIONAL: "PROFESSIONAL",
   ENTERPRISE: "ENTERPRISE",
 } as const;
-export type SubscriptionPlan = (typeof SubscriptionPlan)[keyof typeof SubscriptionPlan];
+export type SubscriptionPlan =
+  (typeof SubscriptionPlan)[keyof typeof SubscriptionPlan];
 
 export interface OnboardingStepFlags {
   profileCompleted: boolean;
@@ -1205,6 +1266,17 @@ interface OnboardingProgressRaw {
   stepTitles?: Record<string, string>;
   totalSteps?: number;
   stepFlags?: OnboardingStepFlags;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    age?: number;
+    gender?: Gender;
+    maritalStatus?: MaritalStatus;
+    businessDescription?: string;
+    socialHandles?: SocialHandles;
+    painPoints?: PainPoints;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -1236,7 +1308,9 @@ export interface OnboardingProgress extends Partial<OnboardingStepFlags> {
 }
 
 // Helper to flatten stepFlags from backend response
-function flattenOnboardingProgress(raw: OnboardingProgressRaw): OnboardingProgress {
+function flattenOnboardingProgress(
+  raw: OnboardingProgressRaw,
+): OnboardingProgress {
   const { stepFlags, ...rest } = raw;
   return {
     ...rest,
@@ -1477,7 +1551,11 @@ export interface AchievementStagesSetupResponse {
 }
 
 // Subscription Selection (Step 7)
-export type SubscriptionPlan = 'FREE' | 'STARTER' | 'PROFESSIONAL' | 'ENTERPRISE';
+export type SubscriptionPlan =
+  | "FREE"
+  | "STARTER"
+  | "PROFESSIONAL"
+  | "ENTERPRISE";
 
 export interface SubscriptionSelectionPayload {
   plan: SubscriptionPlan;
@@ -1500,7 +1578,9 @@ export async function getOnboardingState(): Promise<OnboardingProgress> {
   return flattenOnboardingProgress(raw);
 }
 
-export async function updateOnboarding(payload: UpdateOnboardingPayload): Promise<OnboardingProgress> {
+export async function updateOnboarding(
+  payload: UpdateOnboardingPayload,
+): Promise<OnboardingProgress> {
   const raw: OnboardingProgressRaw = await api("/api/v1/onboarding", {
     method: "PATCH",
     body: JSON.stringify(payload),
@@ -1508,7 +1588,9 @@ export async function updateOnboarding(payload: UpdateOnboardingPayload): Promis
   return flattenOnboardingProgress(raw);
 }
 
-export async function updateOnboardingProfile(payload: ProfileOnboardingPayload): Promise<ProfileOnboardingResponse> {
+export async function updateOnboardingProfile(
+  payload: ProfileOnboardingPayload,
+): Promise<ProfileOnboardingResponse> {
   return await api("/api/v1/onboarding/profile", {
     method: "PATCH",
     body: JSON.stringify(payload),
@@ -1519,7 +1601,9 @@ export async function getBusinessIdentity(): Promise<BusinessIdentityResponse | 
   return await api("/api/v1/onboarding/business-identity");
 }
 
-export async function upsertBusinessIdentity(payload: BusinessIdentityPayload): Promise<BusinessIdentityResponse> {
+export async function upsertBusinessIdentity(
+  payload: BusinessIdentityPayload,
+): Promise<BusinessIdentityResponse> {
   return await api("/api/v1/onboarding/business-identity", {
     method: "PUT",
     body: JSON.stringify(payload),
@@ -1530,7 +1614,9 @@ export async function getSalesPlan(): Promise<SalesPlanResponse | null> {
   return await api("/api/v1/onboarding/sales-plan");
 }
 
-export async function upsertSalesPlan(payload: SalesPlanPayload): Promise<SalesPlanResponse> {
+export async function upsertSalesPlan(
+  payload: SalesPlanPayload,
+): Promise<SalesPlanResponse> {
   return await api("/api/v1/onboarding/sales-plan", {
     method: "PUT",
     body: JSON.stringify(payload),
@@ -1541,7 +1627,9 @@ export async function getActivityConfiguration(): Promise<ActivityConfigurationR
   return await api("/api/v1/onboarding/activity-setup");
 }
 
-export async function upsertActivityConfiguration(payload: ActivityConfigurationPayload): Promise<ActivityConfigurationResponse> {
+export async function upsertActivityConfiguration(
+  payload: ActivityConfigurationPayload,
+): Promise<ActivityConfigurationResponse> {
   return await api("/api/v1/onboarding/activity-setup", {
     method: "PUT",
     body: JSON.stringify(payload),
@@ -1552,7 +1640,9 @@ export async function getSalesCycle(): Promise<SalesCycleSetupResponse | null> {
   return await api("/api/v1/onboarding/sales-cycle");
 }
 
-export async function upsertSalesCycle(payload: SalesCycleSetupPayload): Promise<SalesCycleSetupResponse> {
+export async function upsertSalesCycle(
+  payload: SalesCycleSetupPayload,
+): Promise<SalesCycleSetupResponse> {
   return await api("/api/v1/onboarding/sales-cycle", {
     method: "PUT",
     body: JSON.stringify(payload),
@@ -1569,7 +1659,9 @@ export async function getAchievementStages(): Promise<AchievementStagesSetupResp
   return await api("/api/v1/onboarding/achievement-stages");
 }
 
-export async function upsertAchievementStages(payload: AchievementStagesSetupPayload): Promise<AchievementStagesSetupResponse> {
+export async function upsertAchievementStages(
+  payload: AchievementStagesSetupPayload,
+): Promise<AchievementStagesSetupResponse> {
   return await api("/api/v1/onboarding/achievement-stages", {
     method: "PUT",
     body: JSON.stringify(payload),
@@ -1580,7 +1672,9 @@ export async function getSubscriptionSelection(): Promise<SubscriptionSelectionR
   return await api("/api/v1/onboarding/subscription");
 }
 
-export async function selectSubscription(payload: SubscriptionSelectionPayload): Promise<SubscriptionSelectionResponse> {
+export async function selectSubscription(
+  payload: SubscriptionSelectionPayload,
+): Promise<SubscriptionSelectionResponse> {
   return await api("/api/v1/onboarding/subscription", {
     method: "PUT",
     body: JSON.stringify(payload),
@@ -1771,9 +1865,10 @@ export async function getSalesWeeklySummary(params?: {
 }): Promise<WeeklySalesSummaryResponse> {
   const searchParams = new URLSearchParams();
   if (params?.year) searchParams.append("year", String(params.year));
-  if (params?.fromWeek) searchParams.append("fromWeek", String(params.fromWeek));
+  if (params?.fromWeek)
+    searchParams.append("fromWeek", String(params.fromWeek));
   if (params?.toWeek) searchParams.append("toWeek", String(params.toWeek));
-  
+
   const query = searchParams.toString();
   return await api(`/api/v1/sales/weekly-summary${query ? `?${query}` : ""}`);
 }
@@ -1807,9 +1902,11 @@ export async function getWeeklyActivitySummary(params?: {
   const searchParams = new URLSearchParams();
   if (params?.year) searchParams.append("year", String(params.year));
   if (params?.week) searchParams.append("week", String(params.week));
-  
+
   const query = searchParams.toString();
-  return await api(`/api/v1/activities/weekly-summary${query ? `?${query}` : ""}`);
+  return await api(
+    `/api/v1/activities/weekly-summary${query ? `?${query}` : ""}`,
+  );
 }
 
 // ============================================
@@ -1835,9 +1932,11 @@ export async function getWeeklyOutcomesSummary(params?: {
   const searchParams = new URLSearchParams();
   if (params?.year) searchParams.append("year", String(params.year));
   if (params?.week) searchParams.append("week", String(params.week));
-  
+
   const query = searchParams.toString();
-  return await api(`/api/v1/outcomes/weekly-summary${query ? `?${query}` : ""}`);
+  return await api(
+    `/api/v1/outcomes/weekly-summary${query ? `?${query}` : ""}`,
+  );
 }
 
 // ============================================
@@ -1877,9 +1976,11 @@ export async function getWeeklyDiagnostics(params?: {
   const searchParams = new URLSearchParams();
   if (params?.year) searchParams.append("year", String(params.year));
   if (params?.week) searchParams.append("week", String(params.week));
-  
+
   const query = searchParams.toString();
-  return await api(`/api/v1/insights/weekly-diagnostics${query ? `?${query}` : ""}`);
+  return await api(
+    `/api/v1/insights/weekly-diagnostics${query ? `?${query}` : ""}`,
+  );
 }
 
 // ============================================
@@ -1903,14 +2004,19 @@ export type WeeklySalesEntryResponse = {
 /**
  * Get weekly sales entry for a specific week
  */
-export async function getWeeklySalesEntry(year: number, week: number): Promise<WeeklySalesEntryResponse> {
+export async function getWeeklySalesEntry(
+  year: number,
+  week: number,
+): Promise<WeeklySalesEntryResponse> {
   return await api(`/api/v1/sales/weekly-entry?year=${year}&week=${week}`);
 }
 
 /**
  * Get all weekly sales entries for a year
  */
-export async function getWeeklySalesEntries(year: number): Promise<WeeklySalesEntryResponse[]> {
+export async function getWeeklySalesEntries(
+  year: number,
+): Promise<WeeklySalesEntryResponse[]> {
   return await api(`/api/v1/sales/weekly-entry?year=${year}`);
 }
 
