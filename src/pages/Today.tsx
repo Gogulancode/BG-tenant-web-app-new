@@ -877,11 +877,13 @@ export default function Today() {
         <>
           <InteractiveCoachHero
             actionLabel={
-              cockpit.activities.dueToday.length > 0
-                ? "Do first action"
-                : cockpit.crm.activeFollowUps > 0
-                  ? "Move CRM"
-                  : "Plan the week"
+              !cockpit.setup.isComplete
+                ? "Finish setup"
+                : cockpit.activities.dueToday.length > 0
+                  ? "Do first action"
+                  : cockpit.crm.activeFollowUps > 0
+                    ? "Move CRM"
+                    : "Plan the week"
             }
             icon={Sparkles}
             metricLabel="Momentum"
@@ -889,16 +891,24 @@ export default function Today() {
             progress={cockpit.insights.momentumScore}
             steps={[
               {
-                label: "Pick one input",
-                helper: "Activity, outcome, CRM touch, or metric.",
+                label: cockpit.setup.isComplete
+                  ? "Pick one input"
+                  : "Complete setup",
+                helper: cockpit.setup.isComplete
+                  ? "Activity, outcome, CRM touch, or metric."
+                  : "Add the business details that power guidance.",
               },
               {
-                label: "Save proof",
-                helper: "Log the action so the system can react.",
+                label: cockpit.setup.isComplete ? "Save proof" : "Build rhythm",
+                helper: cockpit.setup.isComplete
+                  ? "Log the action so the system can react."
+                  : "Targets, activities, and CRM become more useful after setup.",
               },
               {
-                label: "Move next",
-                helper: "Follow the next card after the save.",
+                label: cockpit.setup.isComplete ? "Move next" : "Start today",
+                helper: cockpit.setup.isComplete
+                  ? "Follow the next card after the save."
+                  : "Once setup is done, this page guides the daily action.",
               },
             ]}
             title={
@@ -907,11 +917,13 @@ export default function Today() {
                 : "Finish the business foundation first"
             }
             to={
-              cockpit.activities.dueToday.length > 0
-                ? "/activities"
-                : cockpit.crm.activeFollowUps > 0
-                  ? "/sales"
-                  : "/onboarding"
+              !cockpit.setup.isComplete
+                ? "/onboarding"
+                : cockpit.activities.dueToday.length > 0
+                  ? "/activities"
+                  : cockpit.crm.activeFollowUps > 0
+                    ? "/sales"
+                    : "/onboarding"
             }
           >
             {cockpit.setup.isComplete
