@@ -22,34 +22,94 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Loader2, User, Briefcase, Globe, AlertTriangle } from "lucide-react";
-import { useUpdateProfileOnboarding, useOnboardingState } from "@/hooks/useOnboarding";
+import {
+  useUpdateProfileOnboarding,
+  useOnboardingState,
+} from "@/hooks/useOnboarding";
 import { Gender, MaritalStatus } from "@/lib/api";
 
 const profileSchema = z.object({
-  age: z.coerce.number().min(18, "Must be at least 18").max(100, "Invalid age").optional(),
+  age: z.coerce
+    .number()
+    .min(18, "Must be at least 18")
+    .max(100, "Invalid age")
+    .optional(),
   gender: z.string().optional(),
   maritalStatus: z.string().optional(),
-  businessDescription: z.string().min(10, "Please describe your business (min 10 characters)").max(500, "Too long"),
-  socialHandles: z.object({
-    linkedin: z.string().url("Invalid URL").optional().or(z.literal("")),
-    twitter: z.string().url("Invalid URL").optional().or(z.literal("")),
-    instagram: z.string().url("Invalid URL").optional().or(z.literal("")),
-    website: z.string().url("Invalid URL").optional().or(z.literal("")),
-  }).optional(),
-  painPoints: z.object({
-    gettingCustomers: z.boolean().optional(),
-    pricing: z.boolean().optional(),
-    negotiating: z.boolean().optional(),
-    referrals: z.boolean().optional(),
-    retaining: z.boolean().optional(),
-    executingPlans: z.boolean().optional(),
-  }).optional(),
+  businessDescription: z
+    .string()
+    .min(10, "Please describe your business (min 10 characters)")
+    .max(500, "Too long"),
+  socialHandles: z
+    .object({
+      linkedin: z.string().url("Invalid URL").optional().or(z.literal("")),
+      twitter: z.string().url("Invalid URL").optional().or(z.literal("")),
+      instagram: z.string().url("Invalid URL").optional().or(z.literal("")),
+      website: z.string().url("Invalid URL").optional().or(z.literal("")),
+    })
+    .optional(),
+  painPoints: z
+    .object({
+      gettingCustomers: z.boolean().optional(),
+      pricing: z.boolean().optional(),
+      negotiating: z.boolean().optional(),
+      referrals: z.boolean().optional(),
+      retaining: z.boolean().optional(),
+      executingPlans: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
-type ProfileProgressUser = NonNullable<ReturnType<typeof useOnboardingState>["data"]>["user"];
+type ProfileProgressUser = NonNullable<
+  ReturnType<typeof useOnboardingState>["data"]
+>["user"];
+
+const PROFILE_CACHE_KEY = "bg:onboarding:profile";
+const emptySocialHandles = {
+  linkedin: "",
+  twitter: "",
+  instagram: "",
+  website: "",
+};
+const emptyPainPoints = {
+  gettingCustomers: false,
+  pricing: false,
+  negotiating: false,
+  referrals: false,
+  retaining: false,
+  executingPlans: false,
+};
+
+function readCachedProfile(): Partial<ProfileFormData> | undefined {
+  try {
+    const cached = window.localStorage.getItem(PROFILE_CACHE_KEY);
+    return cached ? JSON.parse(cached) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function hasProfileData(
+  user?: ProfileProgressUser,
+): user is ProfileProgressUser {
+  return Boolean(
+    user?.age ||
+    user?.gender ||
+    user?.maritalStatus ||
+    user?.businessDescription ||
+    user?.socialHandles ||
+    user?.painPoints,
+  );
+}
 
 interface Step1ProfileProps {
   onNext: () => void;
@@ -66,52 +126,37 @@ export function Step1Profile({ onNext }: Step1ProfileProps) {
       gender: undefined,
       maritalStatus: undefined,
       businessDescription: "",
-      socialHandles: {
-        linkedin: "",
-        twitter: "",
-        instagram: "",
-        website: "",
-      },
-      painPoints: {
-        gettingCustomers: false,
-        pricing: false,
-        negotiating: false,
-        referrals: false,
-        retaining: false,
-        executingPlans: false,
-      },
+      socialHandles: emptySocialHandles,
+      painPoints: emptyPainPoints,
     },
   });
 
   // Pre-fill form if data exists
   useEffect(() => {
-    if (progress?.user) {
-      const user = progress.user as ProfileProgressUser;
-      form.reset({
-        age: user.age || undefined,
-        gender: user.gender || undefined,
-        maritalStatus: user.maritalStatus || undefined,
-        businessDescription: user.businessDescription || "",
-        socialHandles: user.socialHandles || {
-          linkedin: "",
-          twitter: "",
-          instagram: "",
-          website: "",
-        },
-        painPoints: user.painPoints || {
-          gettingCustomers: false,
-          pricing: false,
-          negotiating: false,
-          referrals: false,
-          retaining: false,
-          executingPlans: false,
-        },
-      });
-    }
+    const user = progress?.user as ProfileProgressUser;
+    const cachedProfile = readCachedProfile();
+    const source = hasProfileData(user) ? user : cachedProfile;
+
+    if (!source) return;
+
+    form.reset({
+      age: source.age || undefined,
+      gender: source.gender || undefined,
+      maritalStatus: source.maritalStatus || undefined,
+      businessDescription: source.businessDescription || "",
+      socialHandles: {
+        ...emptySocialHandles,
+        ...(source.socialHandles || {}),
+      },
+      painPoints: {
+        ...emptyPainPoints,
+        ...(source.painPoints || {}),
+      },
+    });
   }, [progress, form]);
 
   const onSubmit = async (data: ProfileFormData) => {
-    await updateProfile.mutateAsync({
+    const payload = {
       age: data.age,
       gender: data.gender,
       maritalStatus: data.maritalStatus,
@@ -123,7 +168,10 @@ export function Step1Profile({ onNext }: Step1ProfileProps) {
         website: data.socialHandles?.website || undefined,
       },
       painPoints: data.painPoints,
-    });
+    };
+
+    await updateProfile.mutateAsync(payload);
+    window.localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(payload));
     onNext();
   };
 
@@ -167,7 +215,10 @@ export function Step1Profile({ onNext }: Step1ProfileProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Gender</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ""}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value || ""}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select gender" />
@@ -177,7 +228,9 @@ export function Step1Profile({ onNext }: Step1ProfileProps) {
                       <SelectItem value={Gender.MALE}>Male</SelectItem>
                       <SelectItem value={Gender.FEMALE}>Female</SelectItem>
                       <SelectItem value={Gender.OTHER}>Other</SelectItem>
-                      <SelectItem value={Gender.PREFER_NOT_TO_SAY}>Prefer not to say</SelectItem>
+                      <SelectItem value={Gender.PREFER_NOT_TO_SAY}>
+                        Prefer not to say
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -191,18 +244,31 @@ export function Step1Profile({ onNext }: Step1ProfileProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Marital Status</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ""}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value || ""}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value={MaritalStatus.SINGLE}>Single</SelectItem>
-                      <SelectItem value={MaritalStatus.MARRIED}>Married</SelectItem>
-                      <SelectItem value={MaritalStatus.DIVORCED}>Divorced</SelectItem>
-                      <SelectItem value={MaritalStatus.WIDOWED}>Widowed</SelectItem>
-                      <SelectItem value={MaritalStatus.PREFER_NOT_TO_SAY}>Prefer not to say</SelectItem>
+                      <SelectItem value={MaritalStatus.SINGLE}>
+                        Single
+                      </SelectItem>
+                      <SelectItem value={MaritalStatus.MARRIED}>
+                        Married
+                      </SelectItem>
+                      <SelectItem value={MaritalStatus.DIVORCED}>
+                        Divorced
+                      </SelectItem>
+                      <SelectItem value={MaritalStatus.WIDOWED}>
+                        Widowed
+                      </SelectItem>
+                      <SelectItem value={MaritalStatus.PREFER_NOT_TO_SAY}>
+                        Prefer not to say
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -219,9 +285,7 @@ export function Step1Profile({ onNext }: Step1ProfileProps) {
               <Briefcase className="h-5 w-5" />
               Your Business
             </CardTitle>
-            <CardDescription>
-              Help us understand what you do
-            </CardDescription>
+            <CardDescription>Help us understand what you do</CardDescription>
           </CardHeader>
           <CardContent>
             <FormField
@@ -317,10 +381,7 @@ export function Step1Profile({ onNext }: Step1ProfileProps) {
                 <FormItem>
                   <FormLabel>Website</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="https://yourwebsite.com"
-                      {...field}
-                    />
+                    <Input placeholder="https://yourwebsite.com" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
