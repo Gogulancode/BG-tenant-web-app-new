@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getDashboardGuidance } from "./api";
+import { getCoachToday, getDashboardGuidance, saveCoachCatchUp } from "./api";
 
 describe("getDashboardGuidance", () => {
   afterEach(() => {
@@ -56,6 +56,85 @@ describe("getDashboardGuidance", () => {
         headers: expect.objectContaining({
           "Content-Type": "application/json",
         }),
+      }),
+    );
+  });
+
+  it("fetches shared coach Today guidance from the coach endpoint", async () => {
+    const guidance = {
+      state: "BEHIND",
+      message: "You're behind pace, but this is recoverable.",
+      stats: {
+        weeklyTarget: 225000,
+        achievedSoFar: 50000,
+        expectedByToday: 96429,
+        remaining: 175000,
+        activityDone: 2,
+        activityGoal: 7,
+        followupsDue: 1,
+      },
+      actions: [
+        {
+          type: "COMPLETE_ACTIVITY_RHYTHM",
+          title: "Complete one business activity",
+          reason: "Activity rhythm is behind.",
+          priority: "required",
+          cta: "Add activity",
+          route: "/activities",
+          source: "activity",
+        },
+      ],
+      generatedAt: "2026-05-14T00:00:00.000Z",
+    };
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
+      text: () => Promise.resolve(JSON.stringify(guidance)),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getCoachToday()).resolves.toEqual(guidance);
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/api\/v1\/coach\/today$/);
+  });
+
+  it("posts coach catch-up to the catch-up endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({
+            state: "BEHIND",
+            message: "Catch-up saved.",
+            stats: {
+              weeklyTarget: 225000,
+              achievedSoFar: 50000,
+              expectedByToday: 96429,
+              remaining: 175000,
+              activityDone: 0,
+              activityGoal: 7,
+              followupsDue: 0,
+            },
+            actions: [],
+            generatedAt: "2026-05-14T00:00:00.000Z",
+          }),
+        ),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await saveCoachCatchUp({ salesRevenue: 50000, orderCount: 2 });
+
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/api\/v1\/coach\/catch-up$/);
+    expect(options).toEqual(
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ salesRevenue: 50000, orderCount: 2 }),
       }),
     );
   });

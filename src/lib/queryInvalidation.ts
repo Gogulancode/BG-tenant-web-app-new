@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 export function invalidateOperatingSystem(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: ["coach"] });
   queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
   queryClient.invalidateQueries({ queryKey: ["dashboard-guidance"] });
   queryClient.invalidateQueries({ queryKey: ["reports", "business-profile"] });
