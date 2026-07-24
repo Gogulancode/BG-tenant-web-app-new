@@ -63,6 +63,7 @@ import { CoachCatchUpCard } from "@/components/coach/CoachCatchUpCard";
 import { CoachDailyPlan } from "@/components/coach/CoachDailyPlan";
 import { useCoachToday, useSaveCoachCatchUp } from "@/hooks/useCoachGuidance";
 import type { CoachAction, CoachCatchUpPayload } from "@/lib/api";
+import { normalizeTenantRoute } from "@/lib/routes";
 
 interface Outcome {
   id: string;
@@ -990,14 +991,16 @@ export default function Today() {
                 : "Finish the business foundation first")
             }
             to={
-              primaryCoachAction?.route ??
-              (!cockpit.setup.isComplete
-                ? "/onboarding"
-                : cockpit.activities.dueToday.length > 0
-                  ? "/activities"
-                  : cockpit.crm.activeFollowUps > 0
-                    ? "/sales"
-                    : "/onboarding")
+              normalizeTenantRoute(
+                primaryCoachAction?.route,
+                !cockpit.setup.isComplete
+                  ? "/onboarding"
+                  : cockpit.activities.dueToday.length > 0
+                    ? "/activities"
+                    : cockpit.crm.activeFollowUps > 0
+                      ? "/sales"
+                      : "/onboarding",
+              )
             }
           >
             {coach?.message ??

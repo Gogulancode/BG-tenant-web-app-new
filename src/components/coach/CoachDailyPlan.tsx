@@ -4,6 +4,7 @@ import type { CoachAction } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { normalizeTenantRoute } from "@/lib/routes";
 
 export function CoachDailyPlan({ actions }: { actions: CoachAction[] }) {
   if (actions.length === 0) return null;
@@ -44,7 +45,7 @@ export function CoachDailyPlan({ actions }: { actions: CoachAction[] }) {
               </div>
 
               {action.route ? (
-                <Link to={action.route}>
+                <Link to={normalizeTenantRoute(action.route)}>
                   <Button className="w-full gap-2">
                     {action.cta}
                     <ArrowRight className="h-4 w-4" />
