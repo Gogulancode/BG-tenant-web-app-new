@@ -16,3 +16,13 @@ export function invalidateActivityOperatingData(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ["activities"] });
   invalidateOperatingSystem(queryClient);
 }
+
+export function invalidateOutcomeOperatingData(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: ["outcomes"] });
+  invalidateOperatingSystem(queryClient);
+}
+
+export function invalidateMetricOperatingData(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: ["metrics"] });
+  invalidateOperatingSystem(queryClient);
+}

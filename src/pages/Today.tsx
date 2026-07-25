@@ -57,6 +57,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import {
   invalidateOperatingSystem,
+  invalidateMetricOperatingData,
+  invalidateOutcomeOperatingData,
   invalidateSalesOperatingData,
 } from "@/lib/queryInvalidation";
 import { CoachCatchUpCard } from "@/components/coach/CoachCatchUpCard";
@@ -816,8 +818,7 @@ export default function Today() {
       return updateOutcome(outcome.id, { status: newStatus });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["outcomes"] });
-      invalidateOperatingSystem(queryClient);
+      invalidateOutcomeOperatingData(queryClient);
       toast({ title: "Outcome updated" });
     },
     onError: () => {
@@ -831,8 +832,7 @@ export default function Today() {
   const handleLogMetric = async (metricId: string, value: number) => {
     try {
       await logMetric(metricId, value);
-      queryClient.invalidateQueries({ queryKey: ["metrics"] });
-      invalidateOperatingSystem(queryClient);
+      invalidateMetricOperatingData(queryClient);
       toast({ title: "Metric logged" });
     } catch (error) {
       toast({

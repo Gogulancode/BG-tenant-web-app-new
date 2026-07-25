@@ -7,6 +7,7 @@ import {
   deleteTemplate,
   applyTemplate,
 } from "@/lib/api";
+import { invalidateMetricOperatingData } from "@/lib/queryInvalidation";
 
 export interface Template {
   id: string;
@@ -94,7 +95,7 @@ export function useApplyTemplate() {
   return useMutation({
     mutationFn: (templateId: string) => applyTemplate(templateId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["metrics"] });
+      invalidateMetricOperatingData(queryClient);
       toast({
         title: "Template applied",
         description: "New metric created from template",

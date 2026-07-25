@@ -8,6 +8,7 @@ import {
   deleteMetric,
   logMetric,
 } from "@/lib/api";
+import { invalidateMetricOperatingData } from "@/lib/queryInvalidation";
 
 export interface Metric {
   id: string;
@@ -60,7 +61,7 @@ export function useCreateMetric() {
     mutationFn: (payload: { name: string; target?: number }) =>
       createMetric(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["metrics"] });
+      invalidateMetricOperatingData(queryClient);
       toast({ title: "Metric created", description: "New metric has been added" });
     },
     onError: (error: Error) => {
@@ -85,7 +86,7 @@ export function useUpdateMetric() {
       payload: { name?: string; target?: number };
     }) => updateMetric(metricId, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["metrics"] });
+      invalidateMetricOperatingData(queryClient);
       toast({ title: "Metric updated", description: "Changes have been saved" });
     },
     onError: (error: Error) => {
@@ -104,7 +105,7 @@ export function useDeleteMetric() {
   return useMutation({
     mutationFn: (metricId: string) => deleteMetric(metricId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["metrics"] });
+      invalidateMetricOperatingData(queryClient);
       toast({ title: "Metric deleted", description: "Metric has been removed" });
     },
     onError: (error: Error) => {
@@ -125,7 +126,7 @@ export function useLogMetric() {
       logMetric(metricId, value),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["metricLogs", variables.metricId] });
-      queryClient.invalidateQueries({ queryKey: ["metrics"] });
+      invalidateMetricOperatingData(queryClient);
       toast({ title: "Value logged", description: "Metric value has been recorded" });
     },
     onError: (error: Error) => {

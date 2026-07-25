@@ -25,6 +25,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import {
+  invalidateActivityOperatingData,
+  invalidateMetricOperatingData,
+  invalidateOutcomeOperatingData,
+} from "@/lib/queryInvalidation";
 import { getTemplates, applyMetricTemplate, applyActivityTemplate, applyOutcomeTemplate } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -217,7 +222,7 @@ export default function Templates() {
     mutationFn: ({ templateId, target }: { templateId: string; target?: number }) => 
       applyMetricTemplate(templateId, target),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["metrics"] });
+      invalidateMetricOperatingData(queryClient);
       toast({ title: "Success", description: "Metric added to your dashboard!" });
       setTargetDialogOpen(false);
       setSelectedMetricTemplate(null);
@@ -232,7 +237,7 @@ export default function Templates() {
   const applyActivityMutation = useMutation({
     mutationFn: applyActivityTemplate,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["activities"] });
+      invalidateActivityOperatingData(queryClient);
       toast({ title: "Success", description: "Activity template applied successfully!" });
     },
     onError: () => {
@@ -244,7 +249,7 @@ export default function Templates() {
   const applyOutcomeMutation = useMutation({
     mutationFn: applyOutcomeTemplate,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["outcomes"] });
+      invalidateOutcomeOperatingData(queryClient);
       toast({ title: "Success", description: "Outcome template applied successfully!" });
     },
     onError: () => {

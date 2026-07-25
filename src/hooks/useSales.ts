@@ -20,7 +20,7 @@ import {
   type SalesSummaryResponse,
   type WeeklySalesSummaryResponse,
 } from "@/lib/api";
-import { invalidateOperatingSystem } from "@/lib/queryInvalidation";
+import { invalidateSalesOperatingData } from "@/lib/queryInvalidation";
 
 /**
  * Hook to fetch current period sales targets with achievement data
@@ -110,7 +110,7 @@ function invalidateSalesProspectDependencies(
   queryClient: ReturnType<typeof useQueryClient>,
 ) {
   queryClient.invalidateQueries({ queryKey: ["sales", "prospects"] });
-  invalidateOperatingSystem(queryClient);
+  invalidateSalesOperatingData(queryClient);
 }
 
 export function useCreateSalesProspect() {

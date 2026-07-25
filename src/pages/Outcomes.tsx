@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { getOutcomes, createOutcome, updateOutcome } from "../lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { invalidateOutcomeOperatingData } from "@/lib/queryInvalidation";
 import { CheckCircle, Plus, ListChecks, Loader2, RotateCcw } from "lucide-react";
 
 // API response interface - matches backend Outcome model
@@ -79,7 +80,7 @@ export default function Outcomes() {
   const createMutation = useMutation({
     mutationFn: (data: CreateOutcomeFormData) => createOutcome(data.title, data.weekStartDate),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["outcomes"] });
+      invalidateOutcomeOperatingData(queryClient);
       setDialogOpen(false);
       toast({
         title: "Success",
@@ -99,7 +100,7 @@ export default function Outcomes() {
     mutationFn: (outcome: Outcome) => 
       updateOutcome(outcome.id, { status: outcome.completed ? "Planned" : "Done" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["outcomes"] });
+      invalidateOutcomeOperatingData(queryClient);
       toast({
         title: "Success",
         description: "Outcome updated successfully",
@@ -334,4 +335,3 @@ export default function Outcomes() {
     </div>
   );
 }
-
